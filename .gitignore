@@ -1,0 +1,20 @@
+# Environment & secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# Terraform output
+terraform/generated/
+*.tfstate
+*.tfstate.backup
+.terraform/
+tfplan
+plan.json
+
+# LLM cache & logs
+generated/cache/
+generated/llm_calls.jsonl

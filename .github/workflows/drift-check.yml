@@ -1,0 +1,60 @@
+name: Continuous Drift Check
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  drift-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python Dependencies
+        run: pip install -r requirements.txt
+
+      - name: Download Latest State
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-state
+          path: terraform/generated/
+        continue-on-error: true
+
+      - name: Execute Drift Detection
+        run: |
+          python -c "
+          import json, os
+          from pathlib import Path
+          from src.loader import load_spec
+          from src.drift.detector import detect_drift, render_drift_markdown_report
+
+          spec = load_spec('specification/infrastructure.yaml')
+          state_path = Path('terraform/generated/terraform.tfstate')
+
+          if state_path.exists():
+              tfstate = json.loads(state_path.read_text())
+          else:
+              tfstate = {'resources': []}
+
+          result = detect_drift(spec, tfstate)
+          report = render_drift_markdown_report(result)
+
+          # Write to step summary
+          summary_file = os.getenv('GITHUB_STEP_SUMMARY')
+          if summary_file:
+              with open(summary_file, 'a') as f:
+                  f.write(report)
+
+          print(report)
+
+          if result.get('drift_detected'):
+              print('DRIFT_WARNING=true')
+          "
