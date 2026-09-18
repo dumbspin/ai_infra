@@ -235,7 +235,11 @@ def get_infrastructure():
     if not spec_path.exists():
         spec_path = ROOT_DIR / "specification" / "infrastructure.yaml"
 
-    spec = load_spec(spec_path) if spec_path.exists() else {}
+    schema_path = ROOT_DIR / "specification" / "schema" / "infra-spec.schema.json"
+    try:
+        spec = load_spec(spec_path, schema_path=schema_path) if spec_path.exists() else {}
+    except Exception:
+        spec = {}
 
     res = subprocess.run(
         ["docker", "ps", "--format", "{{.Names}}\t{{.Image}}\t{{.Status}}"],
@@ -272,7 +276,11 @@ def get_drift_status():
     if not spec_path.exists():
         spec_path = ROOT_DIR / "specification" / "infrastructure.yaml"
 
-    spec = load_spec(spec_path) if spec_path.exists() else {}
+    schema_path = ROOT_DIR / "specification" / "schema" / "infra-spec.schema.json"
+    try:
+        spec = load_spec(spec_path, schema_path=schema_path) if spec_path.exists() else {}
+    except Exception:
+        spec = {}
 
     tfstate_path = gen_dir / "terraform.tfstate"
     tfstate = json.loads(tfstate_path.read_text(encoding="utf-8")) if tfstate_path.exists() else {"resources": []}

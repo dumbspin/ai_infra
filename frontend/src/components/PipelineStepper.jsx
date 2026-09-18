@@ -10,7 +10,7 @@ const STAGES = [
   { id: 'drift_check', label: 'Drift Check' },
 ];
 
-export default function PipelineStepper({ steps, currentStep, pipelineStatus }) {
+export default function PipelineStepper({ steps, currentStep, pipelineStatus, logs = [] }) {
   const getStageIcon = (status) => {
     switch (status) {
       case 'SUCCESS':
@@ -38,8 +38,8 @@ export default function PipelineStepper({ steps, currentStep, pipelineStatus }) 
   };
 
   return (
-    <div className="bg-dark-800 rounded-xl border border-gray-800 p-5 shadow-xl">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-dark-800 rounded-xl border border-gray-800 p-5 shadow-xl space-y-4">
+      <div className="flex items-center justify-between">
         <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">Pipeline Execution Stepper</h3>
         <span className={`text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full ${
           pipelineStatus === 'SUCCESS' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
@@ -68,6 +68,20 @@ export default function PipelineStepper({ steps, currentStep, pipelineStatus }) 
           );
         })}
       </div>
+
+      {logs && logs.length > 0 && (
+        <div className="bg-dark-950 border border-gray-800/80 rounded-lg p-3 font-mono text-[11px] text-gray-300 max-h-36 overflow-y-auto space-y-1">
+          <div className="text-[10px] uppercase font-bold text-gray-500 mb-1 border-b border-gray-800 pb-1 flex justify-between items-center">
+            <span>Live Pipeline Output</span>
+            <span className="text-[9px] text-gray-600">{logs.length} events logged</span>
+          </div>
+          {logs.map((line, idx) => (
+            <div key={idx} className={`leading-relaxed ${line.includes('ERROR') ? 'text-rose-400 font-semibold' : line.includes('passed') || line.includes('SUCCESS') || line.includes('completed') || line.includes('cleanly') ? 'text-emerald-400' : 'text-gray-300'}`}>
+              {line}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -53,7 +53,12 @@ def load_spec(yaml_path: str | Path, schema_path: str | Path = None) -> Dict[str
         raise FileNotFoundError(f"Specification file not found at {yaml_path}")
 
     if schema_path is None:
-        schema_path = yaml_path.parent / "schema" / "infra-spec.schema.json"
+        local_schema = yaml_path.parent / "schema" / "infra-spec.schema.json"
+        if local_schema.exists():
+            schema_path = local_schema
+        else:
+            # Fallback to canonical repository location
+            schema_path = Path(__file__).parent.parent / "specification" / "schema" / "infra-spec.schema.json"
     else:
         schema_path = Path(schema_path)
 

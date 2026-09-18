@@ -59,43 +59,62 @@ export default function App() {
 
   // Poll Docker & System Status
   const fetchSystemData = async () => {
+    // 1. Pipeline Status
     try {
-      // 1. Docker Status
-      const dockerRes = await fetch('/api/docker/status');
-      const dockerData = await dockerRes.json();
-      setDockerOnline(dockerData.connected);
-
-      // 2. Infrastructure Containers
-      const infraRes = await fetch('/api/infrastructure');
-      const infraData = await infraRes.json();
-      setContainers(infraData.containers || []);
-
-      // 3. Drift Status
-      const driftRes = await fetch('/api/drift');
-      const driftData = await driftRes.json();
-      setDriftResult(driftData);
-
-      // 4. Generated Artifacts
-      const planRes = await fetch('/api/generated/resource-plan');
-      const planData = await planRes.json();
-      setResourcePlan(planData);
-
-      const tfRes = await fetch('/api/generated/terraform');
-      const tfData = await tfRes.json();
-      setTerraformCode(tfData.code || '');
-
-      // 5. Pipeline Status
       const pipeRes = await fetch('/api/pipeline/status');
-      const pipeData = await pipeRes.json();
-      setPipelineState(pipeData);
-    } catch (err) {
-      console.error('Error fetching system data:', err);
+      if (pipeRes.ok) {
+        const pipeData = await pipeRes.json();
+        setPipelineState(pipeData);
+      }
+    } catch (e) {
+      console.error('Error fetching pipeline status:', e);
     }
+
+    // 2. Docker Status
+    try {
+      const dockerRes = await fetch('/api/docker/status');
+      if (dockerRes.ok) {
+        const dockerData = await dockerRes.json();
+        setDockerOnline(dockerData.connected);
+      }
+    } catch (e) {}
+
+    // 3. Infrastructure Containers
+    try {
+      const infraRes = await fetch('/api/infrastructure');
+      if (infraRes.ok) {
+        const infraData = await infraRes.json();
+        setContainers(infraData.containers || []);
+      }
+    } catch (e) {}
+
+    // 4. Drift Status
+    try {
+      const driftRes = await fetch('/api/drift');
+      if (driftRes.ok) {
+        const driftData = await driftRes.json();
+        setDriftResult(driftData);
+      }
+    } catch (e) {}
+
+    // 5. Generated Artifacts
+    try {
+      const planRes = await fetch('/api/generated/resource-plan');
+      if (planRes.ok) {
+        const planData = await planRes.json();
+        setResourcePlan(planData);
+      }
+      const tfRes = await fetch('/api/generated/terraform');
+      if (tfRes.ok) {
+        const tfData = await tfRes.json();
+        setTerraformCode(tfData.code || '');
+      }
+    } catch (e) {}
   };
 
   useEffect(() => {
     fetchSystemData();
-    const interval = setInterval(fetchSystemData, 3000);
+    const interval = setInterval(fetchSystemData, 1500);
     return () => clearInterval(interval);
   }, []);
 
@@ -184,6 +203,7 @@ export default function App() {
           steps={pipelineState.steps}
           currentStep={pipelineState.current_step}
           pipelineStatus={pipelineState.status}
+          logs={pipelineState.logs}
         />
 
         {/* Pipeline Error Alert Banner if failed */}
