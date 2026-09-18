@@ -74,8 +74,85 @@ metadata:
 };
 
 export default function SpecEditor({ specText, setSpecText, onValidate, onRunPipeline, validationResult, isRunning }) {
+  const [cursorPos, setCursorPos] = useState({ line: 1, col: 1 });
+  const [copied, setCopied] = useState(false);
+
   const lineCount = specText.split('\n').length;
   const lineNumbers = Array.from({ length: lineCount }, (_, i) => i + 1);
+
+  // Track cursor position
+  const handleCursorMove = (e) => {
+    const textBeforeCursor = e.target.value.substring(0, e.target.selectionStart);
+    const lines = textBeforeCursor.split('\n');
+    setCursorPos({
+      line: lines.length,
+      col: lines[lines.length - 1].length + 1
+    });
+  };
+
+  // Copy to clipboard
+  const handleCopy = () => {
+    navigator.clipboard.writeText(specText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Format / Prettify YAML (clean 2-space indent)
+  const handleFormat = () => {
+    try {
+      const lines = specText.split('\n').map(l => l.replace(/\t/g, '  '));
+      setSpecText(lines.join('\n'));
+    } catch (e) {}
+  };
+
+  // YAML Syntax Colorizer for overlay
+  const renderHighlightedYaml = (code) => {
+    return code.split('\n').map((line, idx) => {
+      // Comment line
+      if (line.trim().startsWith('#')) {
+        return <div key={idx} className="text-gray-500 italic leading-6">{line || ' '}</div>;
+      }
+
+      // Inline comment match
+      const commentIdx = line.indexOf('#');
+      let codePart = commentIdx !== -1 ? line.substring(0, commentIdx) : line;
+      let commentPart = commentIdx !== -1 ? line.substring(commentIdx) : '';
+
+      // Key-Value match
+      const colonIdx = codePart.indexOf(':');
+      if (colonIdx !== -1) {
+        const keyPart = codePart.substring(0, colonIdx);
+        const valPart = codePart.substring(colonIdx + 1);
+
+        let formattedVal = valPart;
+        let valColor = "text-emerald-300"; // default string
+
+        const trimmedVal = valPart.trim();
+        if (trimmedVal === "true" || trimmedVal === "false") {
+          valColor = "text-purple-400 font-semibold";
+        } else if (!isNaN(Number(trimmedVal)) && trimmedVal !== "") {
+          valColor = "text-amber-300 font-semibold";
+        } else if (trimmedVal.startsWith('"') || trimmedVal.startsWith("'")) {
+          valColor = "text-emerald-400";
+        }
+
+        return (
+          <div key={idx} className="leading-6">
+            <span className="text-sky-400 font-semibold">{keyPart}:</span>
+            <span className={valColor}>{valPart}</span>
+            {commentPart && <span className="text-gray-500 italic">{commentPart}</span>}
+          </div>
+        );
+      }
+
+      return (
+        <div key={idx} className="text-gray-200 leading-6">
+          {codePart}
+          {commentPart && <span className="text-gray-500 italic">{commentPart}</span>}
+        </div>
+      );
+    });
+  };
 
   return (
     <div className="bg-dark-800 rounded-xl border border-gray-800 shadow-xl overflow-hidden flex flex-col">
@@ -107,23 +184,68 @@ export default function SpecEditor({ specText, setSpecText, onValidate, onRunPip
         </div>
       </div>
 
-      {/* Editor Body with Line Numbers */}
-      <div className="flex-1 flex bg-dark-900/60 font-mono text-xs overflow-hidden relative">
+      {/* Editor Body with Line Numbers & Color-Coded Editor */}
+      <div className="flex-1 flex bg-dark-900/90 font-mono text-xs overflow-hidden relative min-h-[300px]">
         {/* Line Numbers */}
-        <div className="py-4 px-3 bg-dark-900/80 text-gray-600 text-right select-none border-r border-gray-800/60 w-12 font-mono">
+        <div className="py-4 px-3 bg-dark-950 text-gray-600 text-right select-none border-r border-gray-800/80 w-12 font-mono shrink-0">
           {lineNumbers.map((num) => (
             <div key={num} className="leading-6">{num}</div>
           ))}
         </div>
 
-        {/* Text Area */}
-        <textarea
-          value={specText}
-          onChange={(e) => setSpecText(e.target.value)}
-          spellCheck="false"
-          className="flex-1 py-4 px-4 bg-transparent text-gray-200 resize-none focus:outline-none leading-6 code-font whitespace-pre font-mono"
-          style={{ tabSize: 2 }}
-        />
+        {/* Syntax-Colored Content & Editable Textarea */}
+        <div className="relative flex-1">
+          {/* Syntax Highlight Layer */}
+          <div className="absolute inset-0 py-4 px-4 font-mono text-xs whitespace-pre pointer-events-none overflow-hidden select-none code-font leading-6">
+            {renderHighlightedYaml(specText)}
+          </div>
+
+          {/* Interactive Input Layer (Caret & Editing) */}
+          <textarea
+            value={specText}
+            onChange={(e) => setSpecText(e.target.value)}
+            onKeyUp={handleCursorMove}
+            onClick={handleCursorMove}
+            onSelect={handleCursorMove}
+            spellCheck="false"
+            className="absolute inset-0 py-4 px-4 bg-transparent text-transparent caret-white resize-none focus:outline-none leading-6 code-font whitespace-pre font-mono selection:bg-indigo-600/40 selection:text-white"
+            style={{ tabSize: 2 }}
+          />
+        </div>
+      </div>
+
+      {/* VS Code-Style Micro Status Bar */}
+      <div className="bg-dark-950 px-5 py-2 border-t border-gray-800/80 flex flex-wrap items-center justify-between text-[11px] font-mono text-gray-400">
+        <div className="flex items-center space-x-4">
+          <span className="text-gray-300 font-semibold">YAML</span>
+          <span className="text-gray-500">|</span>
+          <span className="text-indigo-400 flex items-center space-x-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+            <span>Schema: infra-spec v1.0</span>
+          </span>
+          <span className="text-gray-500 hidden sm:inline">|</span>
+          <span className="text-gray-400 hidden sm:inline">Ln {cursorPos.line}, Col {cursorPos.col}</span>
+          <span className="text-gray-500 hidden sm:inline">|</span>
+          <span className="text-gray-500 hidden sm:inline">{specText.length} chars</span>
+        </div>
+
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={handleFormat}
+            className="hover:text-gray-200 transition-colors flex items-center space-x-1 text-gray-400"
+            title="Clean 2-space YAML formatting"
+          >
+            <span>🧹 Format</span>
+          </button>
+          <span className="text-gray-700">•</span>
+          <button
+            onClick={handleCopy}
+            className="hover:text-emerald-400 transition-colors flex items-center space-x-1 text-gray-400"
+            title="Copy YAML to clipboard"
+          >
+            <span>{copied ? '✓ Copied!' : '📋 Copy YAML'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Validation Feedback Banner */}
