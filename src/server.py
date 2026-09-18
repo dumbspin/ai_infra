@@ -117,6 +117,15 @@ def execute_pipeline_task(yaml_content: str):
     pipeline_state["error_message"] = None
     pipeline_state["logs"] = []
     pipeline_state["violations"] = []
+    pipeline_state["steps"] = {
+        "specification": "IDLE",
+        "ai_compiler": "IDLE",
+        "terraform": "IDLE",
+        "opa_policy": "IDLE",
+        "deployment": "IDLE",
+        "verification": "IDLE",
+        "drift_check": "IDLE"
+    }
 
     def log(msg: str):
         pipeline_state["logs"].append(f"[{time.strftime('%H:%M:%S')}] {msg}")
