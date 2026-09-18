@@ -24,7 +24,7 @@ def apply_plan(
 
     binary = terraform_binary or find_terraform_binary()
 
-    cmd = [binary, "apply", "-input=false", "-no-color", str(plan_file)]
+    cmd = [binary, "apply", "-input=false", "-auto-approve", "-no-color", plan_filename]
     res = subprocess.run(
         cmd,
         cwd=generated_dir,
@@ -32,6 +32,7 @@ def apply_plan(
         text=True,
         check=False
     )
+
 
     output = (res.stdout + "\n" + res.stderr).strip()
 

@@ -2,7 +2,8 @@ import json
 import os
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, Optional
+
 
 
 class TerraformValidationError(Exception):
@@ -60,15 +61,16 @@ def validate_and_plan(
         run_cmd([binary, "validate", "-no-color"])
 
         # 3. Plan
-        plan_path = generated_dir / "tfplan"
-        run_cmd([binary, "plan", "-no-color", f"-out={plan_path}"])
+        plan_filename = "tfplan"
+        run_cmd([binary, "plan", "-no-color", f"-out={plan_filename}"])
 
         # 4. Show JSON representation
-        json_output = run_cmd([binary, "show", "-json", str(plan_path)])
+        json_output = run_cmd([binary, "show", "-json", plan_filename])
         plan_json = json.loads(json_output)
 
         plan_json_path = generated_dir / "plan.json"
         plan_json_path.write_text(json.dumps(plan_json, indent=2), encoding="utf-8")
+
 
         return True, "\n".join(logs), plan_json
     except TerraformValidationError as e:

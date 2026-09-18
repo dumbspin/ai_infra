@@ -74,10 +74,21 @@ resource "docker_image" "{image_identifier}" {{
                 blocks.append(image_block)
                 images_created.add(image_identifier)
 
+            # Handle image-specific runtime requirements
+            extra_hcl = ""
+            if "postgres" in image:
+                extra_hcl = """
+  env = [
+    "POSTGRES_PASSWORD=postgres"
+  ]"""
+            elif "node" in image or "alpine" in image:
+                extra_hcl = """
+  command = ["tail", "-f", "/dev/null"]"""
+
             container_block = f"""
 resource "docker_container" "{container_identifier}" {{
   name  = "{container_name}"
-  image = docker_image.{image_identifier}.image_id
+  image = docker_image.{image_identifier}.image_id{extra_hcl}
 
   labels {{
     label = "owner"
@@ -97,3 +108,4 @@ resource "docker_container" "{container_identifier}" {{
             blocks.append(container_block)
 
     return "\n".join(blocks).strip() + "\n"
+
