@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import SpecEditor from './components/SpecEditor';
 import PipelineStepper from './components/PipelineStepper';
+import TopologyGraph from './components/TopologyGraph';
+import TelemetryHUD from './components/TelemetryHUD';
 import ResourcePlanPanel from './components/ResourcePlanPanel';
 import TerraformPanel from './components/TerraformPanel';
 import PolicyPanel from './components/PolicyPanel';
@@ -10,7 +12,7 @@ import DriftPanel from './components/DriftPanel';
 
 const INITIAL_SPEC = `spec_version: "1.0"
 application: ecommerce
-environment: development
+environment: production
 services:
   frontend:
     replicas: 2
@@ -28,7 +30,7 @@ security:
   public_access: false
   ssh: false
 metadata:
-  owner: ayush
+  owner: platform-team
   created_at: "2026-09-18T00:00:00Z"`;
 
 export default function App() {
@@ -47,7 +49,15 @@ export default function App() {
       drift_check: 'IDLE'
     },
     error_message: null,
-    logs: []
+    logs: [],
+    violations: [],
+    telemetry: {
+      model: 'liquid/lfm-2.5-2.6b:free',
+      inference_time_ms: 0,
+      total_duration_ms: 0,
+      cost_usd: 0.0,
+      cache_active: true
+    }
   });
   const [validationResult, setValidationResult] = useState(null);
   const [resourcePlan, setResourcePlan] = useState({ resources: [] });
@@ -55,6 +65,7 @@ export default function App() {
   const [containers, setContainers] = useState([]);
   const [driftResult, setDriftResult] = useState({ drift_detected: false, items: [] });
   const [isSimulatingDrift, setIsSimulatingDrift] = useState(false);
+  const [isReconciling, setIsReconciling] = useState(false);
   const [isRefreshingInfra, setIsRefreshingInfra] = useState(false);
 
   // Poll Docker & System Status
@@ -173,6 +184,21 @@ export default function App() {
     }
   };
 
+  // Auto-Reconcile & Self-Heal Drift
+  const handleReconcileDrift = async () => {
+    setIsReconciling(true);
+    try {
+      const res = await fetch('/api/drift/reconcile', { method: 'POST' });
+      const data = await res.json();
+      setDriftResult(data);
+      await fetchSystemData();
+    } catch (err) {
+      alert(`Reconciliation error: ${err.message}`);
+    } finally {
+      setIsReconciling(false);
+    }
+  };
+
   // Clean Drift Container
   const handleCleanDrift = async () => {
     try {
@@ -184,11 +210,17 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-dark-900 text-gray-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-dark-900 text-gray-100 flex flex-col font-sans pb-12">
       <Header dockerOnline={dockerOnline} pipelineStatus={pipelineState.status} />
 
       <main className="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6">
-        {/* Section 1: Specification Editor */}
+        {/* Top HUD: AI & System Telemetry */}
+        <TelemetryHUD
+          telemetry={pipelineState.telemetry}
+          pipelineStatus={pipelineState.status}
+        />
+
+        {/* Section 1: Specification Editor with Scenario Presets */}
         <SpecEditor
           specText={specText}
           setSpecText={setSpecText}
@@ -198,7 +230,7 @@ export default function App() {
           isRunning={pipelineState.status === 'RUNNING'}
         />
 
-        {/* Section 2: Pipeline Stepper */}
+        {/* Section 2: Pipeline Stepper & Live Streaming Logs */}
         <PipelineStepper
           steps={pipelineState.steps}
           currentStep={pipelineState.current_step}
@@ -208,20 +240,26 @@ export default function App() {
 
         {/* Pipeline Error Alert Banner if failed */}
         {pipelineState.status === 'FAILED' && pipelineState.error_message && (
-          <div className="bg-rose-950/30 border border-rose-500/40 p-4 rounded-xl text-xs font-mono text-rose-300">
-            <strong className="text-rose-400 block mb-1">❌ Pipeline Execution Blocked / Failed:</strong>
+          <div className="bg-rose-950/30 border border-rose-500/40 p-4 rounded-xl text-xs font-mono text-rose-300 shadow-xl">
+            <strong className="text-rose-400 block mb-1">❌ Pipeline Execution Blocked / Guardrail Enforced:</strong>
             <pre className="whitespace-pre-wrap">{pipelineState.error_message}</pre>
           </div>
         )}
 
-        {/* Section 3: Expandable Artifact Panels (AI Resource Plan, Terraform HCL, Policy Check) */}
+        {/* Section 3: Interactive Architecture Topology Graph */}
+        <TopologyGraph containers={containers} />
+
+        {/* Section 4: Expandable Artifact Panels (AI Resource Plan, Terraform HCL, Policy Check) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <ResourcePlanPanel resourcePlan={resourcePlan} />
           <TerraformPanel terraformCode={terraformCode} />
-          <PolicyPanel opaStatus={pipelineState.steps.opa_policy} violations={[]} />
+          <PolicyPanel 
+            opaStatus={pipelineState.steps.opa_policy} 
+            violations={pipelineState.violations || []} 
+          />
         </div>
 
-        {/* Section 4: Live Infrastructure Table */}
+        {/* Section 5: Live Infrastructure Table */}
         <InfrastructureTable
           containers={containers}
           onRefresh={async () => {
@@ -232,12 +270,14 @@ export default function App() {
           isLoading={isRefreshingInfra}
         />
 
-        {/* Section 5: Drift Detection Dashboard */}
+        {/* Section 6: Drift Detection & Auto-Reconciliation Engine */}
         <DriftPanel
           driftResult={driftResult}
           onSimulateDrift={handleSimulateDrift}
           onCleanDrift={handleCleanDrift}
+          onReconcileDrift={handleReconcileDrift}
           isSimulating={isSimulatingDrift}
+          isReconciling={isReconciling}
         />
       </main>
     </div>

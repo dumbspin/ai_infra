@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { Play, CheckCircle2, XCircle, RotateCcw, ShieldCheck, FileCode2 } from 'lucide-react';
+import { Play, CheckCircle2, XCircle, RotateCcw, ShieldCheck, FileCode2, Sparkles } from 'lucide-react';
 
-const DEFAULT_SPEC = `spec_version: "1.0"
+const PRESETS = {
+  ecommerce: {
+    name: "🛒 Production E-Commerce",
+    yaml: `spec_version: "1.0"
 application: ecommerce
-environment: development
+environment: production
 services:
   frontend:
     replicas: 2
@@ -21,8 +24,54 @@ security:
   public_access: false
   ssh: false
 metadata:
-  owner: ayush
-  created_at: "2026-09-18T00:00:00Z"`;
+  owner: platform-team
+  created_at: "2026-09-18T00:00:00Z"`
+  },
+  insecure: {
+    name: "🚨 Security Violation Demo",
+    yaml: `spec_version: "1.0"
+application: insecure-shadow-app
+environment: development
+services:
+  frontend:
+    replicas: 1
+    image: nginx:1.25
+  database:
+    replicas: 1
+    image: postgres:16
+security:
+  public_access: true   # ⚠️ Violates OPA: no_public_ingress_without_approval
+  ssh: true             # ⚠️ Violates OPA: no_ssh_exposed
+metadata:
+  owner: shadow-developer
+  created_at: "2026-09-18T00:00:00Z"`
+  },
+  microservices: {
+    name: "⚡ Scaled Microservices",
+    yaml: `spec_version: "1.0"
+application: fintech-core
+environment: staging
+services:
+  api-gateway:
+    replicas: 2
+    image: nginx:1.25
+  auth-service:
+    replicas: 1
+    image: node:20-alpine
+  payment-api:
+    replicas: 2
+    image: node:20-alpine
+  database:
+    replicas: 1
+    image: postgres:16
+security:
+  public_access: false
+  ssh: false
+metadata:
+  owner: fintech-platform
+  created_at: "2026-09-18T00:00:00Z"`
+  }
+};
 
 export default function SpecEditor({ specText, setSpecText, onValidate, onRunPipeline, validationResult, isRunning }) {
   const lineCount = specText.split('\n').length;
@@ -31,20 +80,31 @@ export default function SpecEditor({ specText, setSpecText, onValidate, onRunPip
   return (
     <div className="bg-dark-800 rounded-xl border border-gray-800 shadow-xl overflow-hidden flex flex-col">
       {/* Panel Header */}
-      <div className="bg-dark-700/50 px-5 py-3 border-b border-gray-800 flex items-center justify-between">
+      <div className="bg-dark-700/50 px-5 py-3 border-b border-gray-800 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center space-x-2 text-sm font-semibold text-white">
           <FileCode2 className="w-4 h-4 text-indigo-400" />
           <span>Specification Editor</span>
-          <span className="text-xs text-gray-400 font-mono font-normal">(infrastructure.yaml)</span>
+          <span className="text-xs text-gray-400 font-mono font-normal hidden sm:inline">(infrastructure.yaml)</span>
         </div>
-        <button
-          onClick={() => setSpecText(DEFAULT_SPEC)}
-          className="text-xs text-gray-400 hover:text-white flex items-center space-x-1 transition-colors"
-          title="Reset to default eCommerce spec"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>Reset Example</span>
-        </button>
+
+        {/* Scenario Presets Selector */}
+        <div className="flex items-center space-x-1.5 bg-dark-900/90 p-1 rounded-lg border border-gray-800">
+          <span className="text-[10px] uppercase font-bold text-gray-400 px-2">Preset:</span>
+          {Object.entries(PRESETS).map(([key, item]) => (
+            <button
+              key={key}
+              onClick={() => setSpecText(item.yaml)}
+              disabled={isRunning}
+              className={`text-xs px-2.5 py-1 rounded-md font-medium transition-all ${
+                specText.includes(key === 'insecure' ? 'insecure-shadow-app' : key === 'microservices' ? 'fintech-core' : 'ecommerce')
+                  ? 'bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 shadow-sm'
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-dark-800'
+              }`}
+            >
+              {item.name}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Editor Body with Line Numbers */}

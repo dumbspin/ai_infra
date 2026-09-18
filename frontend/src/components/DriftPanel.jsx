@@ -1,9 +1,10 @@
 import React from 'react';
 import { AlertTriangle, CheckCircle2, Flame, Trash2, RefreshCw } from 'lucide-react';
 
-export default function DriftPanel({ driftResult, onSimulateDrift, onCleanDrift, isSimulating }) {
+export default function DriftPanel({ driftResult, onSimulateDrift, onCleanDrift, onReconcileDrift, isSimulating, isReconciling }) {
   const isDrifted = driftResult?.drift_detected;
   const items = driftResult?.items || [];
+  const reconciledActions = driftResult?.reconciled_actions || [];
 
   return (
     <div className={`rounded-xl border p-5 shadow-xl transition-all ${
@@ -18,17 +19,29 @@ export default function DriftPanel({ driftResult, onSimulateDrift, onCleanDrift,
           ) : (
             <CheckCircle2 className="w-5 h-5 text-emerald-400" />
           )}
-          <span>DRIFT STATUS</span>
+          <span>DRIFT STATUS & RECONCILIATION ENGINE</span>
         </div>
 
         <div className="flex items-center space-x-2">
+          {isDrifted && (
+            <button
+              onClick={onReconcileDrift}
+              disabled={isReconciling}
+              className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg shadow-lg shadow-emerald-600/20 flex items-center space-x-1.5 transition-colors disabled:opacity-50 animate-pulse"
+              title="Automatically heal infrastructure back to specification"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isReconciling ? 'animate-spin' : ''}`} />
+              <span>{isReconciling ? 'Reconciling...' : '⚡ Auto-Reconcile & Self-Heal'}</span>
+            </button>
+          )}
+
           {isDrifted && (
             <button
               onClick={onCleanDrift}
               className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-semibold rounded-lg border border-gray-700 flex items-center space-x-1.5 transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5 text-gray-400" />
-              <span>Clean Drift Container</span>
+              <span>Prune Container</span>
             </button>
           )}
 

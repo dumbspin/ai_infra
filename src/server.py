@@ -52,7 +52,15 @@ pipeline_state = {
         "drift_check": "IDLE"
     },
     "error_message": None,
-    "logs": []
+    "logs": [],
+    "violations": [],
+    "telemetry": {
+        "model": "liquid/lfm-2.5-2.6b:free",
+        "inference_time_ms": 0,
+        "total_duration_ms": 0,
+        "cost_usd": 0.0,
+        "cache_active": True
+    }
 }
 
 
@@ -104,9 +112,11 @@ def validate_specification(payload: ValidateRequest):
 def execute_pipeline_task(yaml_content: str):
     """Background task executing the complete 6-stage SDD pipeline."""
     global pipeline_state
+    start_time = time.time()
     pipeline_state["status"] = "RUNNING"
     pipeline_state["error_message"] = None
     pipeline_state["logs"] = []
+    pipeline_state["violations"] = []
 
     def log(msg: str):
         pipeline_state["logs"].append(f"[{time.strftime('%H:%M:%S')}] {msg}")
@@ -125,18 +135,20 @@ def execute_pipeline_task(yaml_content: str):
         schema_path = ROOT_DIR / "specification" / "schema" / "infra-spec.schema.json"
         spec = load_spec(spec_path, schema_path=schema_path)
 
-
         pipeline_state["steps"]["specification"] = "SUCCESS"
         log("Specification validated successfully.")
 
         # Stage 2: AI Compilation
         pipeline_state["current_step"] = "ai_compiler"
         pipeline_state["steps"]["ai_compiler"] = "RUNNING"
-        log("Compiling candidate JSON resource plan via AI layer...")
+        log("Compiling candidate JSON resource plan via AI layer (OpenRouter)...")
 
+        t0 = time.time()
         plan = call_llm_for_plan(spec, force_refresh=True)
+        infer_time = round((time.time() - t0) * 1000, 1)
+        pipeline_state["telemetry"]["inference_time_ms"] = infer_time
         pipeline_state["steps"]["ai_compiler"] = "SUCCESS"
-        log(f"AI Compilation complete. Emitted {len(plan.get('resources', []))} resource declarations.")
+        log(f"AI Compilation complete in {infer_time}ms. Emitted {len(plan.get('resources', []))} resource declarations.")
 
         # Stage 3: Terraform Generation & Planning
         pipeline_state["current_step"] = "terraform"
@@ -156,13 +168,14 @@ def execute_pipeline_task(yaml_content: str):
         # Stage 4: OPA Security Policy Gate
         pipeline_state["current_step"] = "opa_policy"
         pipeline_state["steps"]["opa_policy"] = "RUNNING"
-        log("Evaluating OPA security policies...")
+        log("Evaluating OPA security policies (policies/security.rego)...")
 
         allow, violations = evaluate_policy(gen_dir / "plan.json")
         if not allow:
-            violation_str = "; ".join(violations)
+            pipeline_state["violations"] = violations
             pipeline_state["steps"]["opa_policy"] = "FAILED"
-            raise RuntimeError(f"OPA Security Policy DENIED execution: {violation_str}")
+            violation_str = "\n• " + "\n• ".join(violations)
+            raise RuntimeError(f"OPA Security Policy DENIED execution:{violation_str}")
 
         pipeline_state["steps"]["opa_policy"] = "SUCCESS"
         log("OPA Security Gate passed with 0 policy violations.")
@@ -193,11 +206,15 @@ def execute_pipeline_task(yaml_content: str):
         time.sleep(1)
         pipeline_state["steps"]["drift_check"] = "SUCCESS"
 
+        total_time = round((time.time() - start_time) * 1000, 1)
+        pipeline_state["telemetry"]["total_duration_ms"] = total_time
         pipeline_state["status"] = "SUCCESS"
         pipeline_state["current_step"] = "complete"
-        log("Pipeline execution finished cleanly!")
+        log(f"Pipeline execution finished cleanly in {total_time}ms!")
 
     except Exception as e:
+        total_time = round((time.time() - start_time) * 1000, 1)
+        pipeline_state["telemetry"]["total_duration_ms"] = total_time
         pipeline_state["status"] = "FAILED"
         pipeline_state["error_message"] = str(e)
         current = pipeline_state["current_step"]
@@ -316,6 +333,45 @@ def cleanup_simulated_drift():
     """Removes the unmanaged demo container."""
     subprocess.run(["docker", "rm", "-f", "frontend-3-untracked"], capture_output=True, check=False)
     return {"message": "Simulated drift container removed"}
+
+
+@app.post("/api/drift/reconcile")
+def reconcile_drift():
+    """Autonomously heals detected drift by removing unmanaged containers and applying active state."""
+    gen_dir = ROOT_DIR / "terraform" / "generated"
+    spec_path = gen_dir / "active_infrastructure.yaml"
+    if not spec_path.exists():
+        spec_path = ROOT_DIR / "specification" / "infrastructure.yaml"
+
+    schema_path = ROOT_DIR / "specification" / "schema" / "infra-spec.schema.json"
+    try:
+        spec = load_spec(spec_path, schema_path=schema_path) if spec_path.exists() else {}
+    except Exception:
+        spec = {}
+
+    tfstate_path = gen_dir / "terraform.tfstate"
+    tfstate = json.loads(tfstate_path.read_text(encoding="utf-8")) if tfstate_path.exists() else {"resources": []}
+
+    live_res = subprocess.run(["docker", "ps", "--format", "{{.Names}}"], capture_output=True, text=True, check=False)
+    live_containers = [{"name": n.strip()} for n in live_res.stdout.splitlines() if n.strip()]
+
+    drift_report = detect_drift(spec, tfstate, live_containers=live_containers)
+    reconciled_actions = []
+
+    for item in drift_report.get("items", []):
+        res_name = item.get("resource")
+        drift_type = item.get("type", "")
+        if drift_type == "unmanaged_resource":
+            subprocess.run(["docker", "rm", "-f", res_name], capture_output=True, check=False)
+            reconciled_actions.append(f"Pruned unmanaged container: {res_name}")
+        elif drift_type in ("missing_resource", "count_mismatch", "config_drift"):
+            apply_plan(gen_dir)
+            reconciled_actions.append(f"Re-applied Terraform desired state for: {res_name}")
+
+    time.sleep(1)
+    new_status = get_drift_status()
+    new_status["reconciled_actions"] = reconciled_actions
+    return new_status
 
 
 @app.get("/api/generated/resource-plan")

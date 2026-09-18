@@ -75,3 +75,21 @@ def test_drift_endpoint():
     assert "drift_detected" in data
     assert "items" in data
     assert "markdown" in data
+
+
+def test_pipeline_status_telemetry():
+    response = client.get("/api/pipeline/status")
+    assert response.status_code == 200
+    data = response.json()
+    assert "status" in data
+    assert "telemetry" in data
+    assert "violations" in data
+    assert data["telemetry"]["model"] == "liquid/lfm-2.5-2.6b:free"
+
+
+def test_drift_reconcile_endpoint():
+    response = client.post("/api/drift/reconcile")
+    assert response.status_code == 200
+    data = response.json()
+    assert "drift_detected" in data
+    assert "reconciled_actions" in data
