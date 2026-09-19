@@ -35,9 +35,12 @@ metadata:
 
 export default function App() {
   const [specText, setSpecText] = useState(INITIAL_SPEC);
+  const [selectedTarget, setSelectedTarget] = useState('docker');
   const [dockerOnline, setDockerOnline] = useState(true);
+  const [policies, setPolicies] = useState([]);
   const [pipelineState, setPipelineState] = useState({
     status: 'IDLE',
+    target: 'docker',
     current_step: 'idle',
     steps: {
       specification: 'IDLE',
@@ -121,6 +124,15 @@ export default function App() {
         setTerraformCode(tfData.code || '');
       }
     } catch (e) {}
+
+    // 6. Active Policies
+    try {
+      const polRes = await fetch('/api/policies');
+      if (polRes.ok) {
+        const polData = await polRes.json();
+        setPolicies(polData.policies || []);
+      }
+    } catch (e) {}
   };
 
   useEffect(() => {
@@ -155,7 +167,10 @@ export default function App() {
       const res = await fetch('/api/pipeline/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ specification: specText })
+        body: JSON.stringify({ 
+          specification: specText,
+          target: selectedTarget
+        })
       });
       const data = await res.json();
       if (res.ok) {
@@ -167,6 +182,27 @@ export default function App() {
     } catch (err) {
       alert(`Pipeline error: ${err.message}`);
     }
+  };
+
+  // Toggle OPA Policy
+  const handleTogglePolicy = async (policyId, enabled) => {
+    try {
+      const res = await fetch('/api/policies/toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ policy_id: policyId, enabled })
+      });
+      if (res.ok) {
+        await fetchSystemData();
+      }
+    } catch (err) {
+      console.error('Error toggling policy:', err);
+    }
+  };
+
+  // Export Infrastructure Bundle (.zip)
+  const handleExportBundle = () => {
+    window.location.href = `/api/export/bundle?target=${selectedTarget}`;
   };
 
   // Simulate Drift
@@ -211,7 +247,13 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-dark-900 text-gray-100 flex flex-col font-sans pb-12">
-      <Header dockerOnline={dockerOnline} pipelineStatus={pipelineState.status} />
+      <Header 
+        dockerOnline={dockerOnline} 
+        pipelineStatus={pipelineState.status}
+        selectedTarget={selectedTarget}
+        onSelectTarget={setSelectedTarget}
+        onExportBundle={handleExportBundle}
+      />
 
       <main className="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6">
         {/* Top HUD: AI & System Telemetry */}
@@ -255,7 +297,9 @@ export default function App() {
           <TerraformPanel terraformCode={terraformCode} />
           <PolicyPanel 
             opaStatus={pipelineState.steps.opa_policy} 
-            violations={pipelineState.violations || []} 
+            violations={pipelineState.violations || []}
+            policies={policies}
+            onTogglePolicy={handleTogglePolicy}
           />
         </div>
 

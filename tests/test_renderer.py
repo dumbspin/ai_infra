@@ -75,3 +75,49 @@ def test_offline_llm_client_mock():
     assert plan["resources"][0]["name"] == "backend"
     assert plan["resources"][0]["replicas"] == 2
     assert plan["resources"][0]["tags"]["owner"] == "ayush"
+
+
+def test_renderer_aws_ecs():
+    plan = {
+        "resources": [
+            {
+                "type": "docker_container",
+                "name": "frontend",
+                "replicas": 2,
+                "image": "nginx:1.25",
+                "public_access": False,
+                "ssh_enabled": False,
+                "tags": {"owner": "platform-team"}
+            }
+        ]
+    }
+    hcl = render_terraform(plan, target="aws_ecs")
+    assert 'resource "aws_ecs_cluster" "main"' in hcl
+    assert 'resource "aws_ecs_task_definition" "frontend_task"' in hcl
+    assert 'resource "aws_ecs_service" "frontend_svc"' in hcl
+    assert 'launch_type     = "FARGATE"' in hcl
+    assert 'desired_count   = 2' in hcl
+    assert 'resource "aws_security_group" "frontend_sg"' in hcl
+
+
+def test_renderer_kubernetes():
+    plan = {
+        "resources": [
+            {
+                "type": "docker_container",
+                "name": "backend",
+                "replicas": 3,
+                "image": "node:20-alpine",
+                "public_access": False,
+                "ssh_enabled": False,
+                "tags": {"owner": "platform-team"}
+            }
+        ]
+    }
+    hcl = render_terraform(plan, target="kubernetes")
+    assert 'resource "kubernetes_namespace" "app_ns"' in hcl
+    assert 'resource "kubernetes_deployment" "backend_deployment"' in hcl
+    assert 'resource "kubernetes_service" "backend_service"' in hcl
+    assert 'replicas = 3' in hcl
+    assert 'type = "ClusterIP"' in hcl
+

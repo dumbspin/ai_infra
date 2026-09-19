@@ -93,3 +93,29 @@ def test_drift_reconcile_endpoint():
     data = response.json()
     assert "drift_detected" in data
     assert "reconciled_actions" in data
+
+
+def test_policies_endpoints():
+    # 1. Get policies
+    res = client.get("/api/policies")
+    assert res.status_code == 200
+    data = res.json()
+    assert "policies" in data
+    assert len(data["policies"]) >= 3
+
+    # 2. Toggle policy
+    res_toggle = client.post("/api/policies/toggle", json={"policy_id": "no_ssh_exposed", "enabled": False})
+    assert res_toggle.status_code == 200
+    assert res_toggle.json()["policy"]["enabled"] is False
+
+    # Restore
+    client.post("/api/policies/toggle", json={"policy_id": "no_ssh_exposed", "enabled": True})
+
+
+def test_export_bundle_endpoint():
+    for target in ("docker", "aws_ecs", "kubernetes"):
+        res = client.get(f"/api/export/bundle?target={target}")
+        assert res.status_code == 200
+        assert res.headers["content-type"] == "application/zip"
+        assert f"sdd-infra-{target}-bundle.zip" in res.headers["content-disposition"]
+

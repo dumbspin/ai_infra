@@ -1,7 +1,7 @@
 import json
 import subprocess
 from pathlib import Path
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict
 
 
 class PolicyGateError(Exception):
@@ -19,10 +19,12 @@ def find_opa_binary() -> str:
 def evaluate_policy(
     plan_json_path: str | Path,
     policies_dir: str | Path = None,
-    opa_binary: Optional[str] = None
+    opa_binary: Optional[str] = None,
+    active_rules: Optional[Dict[str, bool]] = None
 ) -> Tuple[bool, List[str]]:
     """
     Evaluates OPA Rego security policy against terraform plan.json payload.
+    Supports dynamic active_rules toggling for interactive policy customization.
     Returns (allow, violations_list).
     """
     plan_json_path = Path(plan_json_path)
@@ -66,6 +68,20 @@ def evaluate_policy(
                     violations.extend(val)
                 elif isinstance(val, str) and val:
                     violations.append(val)
+
+        # Apply active_rules filter if customized
+        if active_rules:
+            filtered_violations = []
+            for v in violations:
+                v_lower = v.lower()
+                if "public_access" in v_lower and not active_rules.get("no_public_ingress", True):
+                    continue
+                if "ssh" in v_lower and not active_rules.get("no_ssh_exposed", True):
+                    continue
+                if "owner" in v_lower and not active_rules.get("require_owner_tag", True):
+                    continue
+                filtered_violations.append(v)
+            violations = filtered_violations
 
         allow = len(violations) == 0
         return allow, violations
