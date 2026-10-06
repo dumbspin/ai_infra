@@ -46,10 +46,10 @@ jobs:
         with:
           version: 'v0.62.0'
 
-      - name: Step 4 - SDD Validate Specification
+      - name: "Step 4 - SDD Validate Specification"
         run: sdd validate specification/infrastructure.yaml
 
-      - name: Step 5 - SDD Plan & Policy Gate (Target: Docker)
+      - name: "Step 5 - SDD Plan & Policy Gate (Target: Docker)"
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENROUTER_MODEL: ${{ secrets.OPENROUTER_MODEL || 'liquid/lfm-2.5-2.6b:free' }}
@@ -58,7 +58,7 @@ jobs:
           echo "Executing SDD Plan for Docker target..."
           sdd plan specification/infrastructure.yaml --target docker --json
 
-      - name: Step 6a - SDD Plan & Policy Gate (Target: AWS ECS)
+      - name: "Step 6a - SDD Plan & Policy Gate (Target: AWS ECS)"
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENROUTER_MODEL: ${{ secrets.OPENROUTER_MODEL || 'liquid/lfm-2.5-2.6b:free' }}
@@ -67,7 +67,7 @@ jobs:
           echo "Executing SDD Plan for AWS ECS target..."
           sdd plan specification/infrastructure.yaml --target aws_ecs --json
 
-      - name: Step 6b - SDD Plan & Policy Gate (Target: Kubernetes)
+      - name: "Step 6b - SDD Plan & Policy Gate (Target: Kubernetes)"
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENROUTER_MODEL: ${{ secrets.OPENROUTER_MODEL || 'liquid/lfm-2.5-2.6b:free' }}
@@ -113,11 +113,11 @@ jobs:
         with:
           version: 'v0.62.0'
 
-      - name: Step 5 - Sanity Check Docker Daemon Reachability
+      - name: "Step 5 - Sanity Check Docker Daemon Reachability"
         run: |
           python -c "from src.applier import is_docker_daemon_reachable; import sys; reachable = is_docker_daemon_reachable(); print(f'Docker daemon reachable on runner: {reachable}'); sys.exit(0 if reachable else 1)"
 
-      - name: Step 6 - SDD Deploy Live Infrastructure (Docker Target)
+      - name: "Step 6 - SDD Deploy Live Infrastructure (Docker Target)"
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENROUTER_MODEL: ${{ secrets.OPENROUTER_MODEL || 'liquid/lfm-2.5-2.6b:free' }}
@@ -127,7 +127,7 @@ jobs:
         run: |
           sdd deploy specification/infrastructure.yaml --target docker --yes --json
 
-      - name: Step 7 - Teardown & Clean Up Live Containers (Always Run)
+      - name: "Step 7 - Teardown & Clean Up Live Containers (Always Run)"
         if: always()
         run: |
           echo "Cleaning up any running containers and Terraform state created during test..."
