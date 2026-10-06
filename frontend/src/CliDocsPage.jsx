@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Copy, Check, ArrowLeft, ArrowUpRight } from "lucide-react";
+import BrandLogo from "./components/BrandLogo";
 
 function CodeBlock({ code, language = "bash" }) {
   const [copied, setCopied] = useState(false);
@@ -73,10 +74,8 @@ export default function CliDocsPage() {
         {/* TOP NAVBAR */}
         <header className="sticky top-0 z-50 px-6 py-4 backdrop-blur-md bg-void/85 border-b border-white/[0.08] flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link to="/" className="flex items-center gap-2 group">
-              <div className="w-6 h-6 rounded bg-zinc-900 border border-white/[0.15] flex items-center justify-center group-hover:border-[#b8ff22]/50 transition-colors">
-                <span className="w-2 h-2 rounded-xs bg-[#b8ff22] shadow-[0_0_6px_#b8ff22]"></span>
-              </div>
+            <Link to="/" className="flex items-center gap-2.5 group">
+              <BrandLogo className="w-7 h-7 rounded-lg border border-white/20" />
               <span className="font-bold text-base text-white tracking-tight">
                 sdd<span className="text-[#b8ff22]">.infra</span>
               </span>

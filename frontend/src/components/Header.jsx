@@ -1,5 +1,7 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { Download, Box, Cloud, Layers } from "lucide-react";
+import BrandLogo from "./BrandLogo";
 
 const TARGETS = [
   { id: "docker", label: "Docker Local", icon: Box },
@@ -19,18 +21,14 @@ export default function Header({
     <header className="px-2 sm:px-4 pt-2 pb-2">
       <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
         
-        {/* Left: Brand Identity with Asterisk / Star Icon matching Salesforce logo style */}
+        {/* Left: Brand Identity with New Starburst Logo */}
         <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-2">
-            <div className="w-7 h-7 flex items-center justify-center text-white">
-              <svg viewBox="0 0 24 24" className="w-6 h-6 fill-current text-white" stroke="none">
-                <path d="M12 2L13.5 8.5L20 7L15.5 12L20 17L13.5 15.5L12 22L10.5 15.5L4 17L8.5 12L4 7L10.5 8.5L12 2Z" />
-              </svg>
-            </div>
-            <span className="text-lg font-black tracking-tight text-white font-sans">
+          <Link to="/" className="flex items-center space-x-2.5 group cursor-pointer" title="Back to Home">
+            <BrandLogo className="w-8 h-8 rounded-xl border border-white/25" />
+            <span className="text-lg font-black tracking-tight text-white font-sans group-hover:text-slate-100 transition-colors">
               sdd<span className="text-[#b8ff22]">.</span>infra
             </span>
-          </div>
+          </Link>
         </div>
 
         {/* Center: Floating White Pill Multi-Cloud Target Switcher */}

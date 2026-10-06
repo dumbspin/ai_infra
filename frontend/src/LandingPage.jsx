@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
+import BrandLogo from "./components/BrandLogo";
 
 // High Performance Jitter Pixel Grid Canvas Component
 function FlickeringGridCanvas({ active = true, squareSize = 3, gridGap = 3, color = "184, 255, 34" }) {
@@ -101,10 +102,8 @@ export default function LandingPage() {
 
         {/* TOP NAVBAR */}
         <header className="sticky top-0 z-50 px-6 py-4 backdrop-blur-md bg-void/85 border-b border-white/[0.08] flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 group">
-            <div className="w-6 h-6 rounded bg-zinc-900 border border-white/[0.15] flex items-center justify-center group-hover:border-[#b8ff22]/50 transition-colors">
-              <span className="w-2 h-2 rounded-xs bg-[#b8ff22] shadow-[0_0_6px_#b8ff22]"></span>
-            </div>
+          <Link to="/" className="flex items-center gap-2.5 group">
+            <BrandLogo className="w-7 h-7 rounded-lg border border-white/20" />
             <span className="font-bold text-base text-white tracking-tight">
               sdd<span className="text-[#b8ff22]">.infra</span>
             </span>
@@ -629,10 +628,8 @@ export default function LandingPage() {
         {/* FOOTER */}
         <footer className="p-6 md:p-12 space-y-8 bg-black/40">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-white/[0.08]">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded bg-zinc-900 border border-white/[0.15] flex items-center justify-center">
-                <span className="w-2 h-2 rounded-xs bg-[#b8ff22] shadow-[0_0_6px_#b8ff22]"></span>
-              </div>
+            <div className="flex items-center gap-2.5">
+              <BrandLogo className="w-6 h-6 rounded-md border border-white/20" />
               <span className="font-bold text-base text-white">
                 sdd<span className="text-[#b8ff22]">.infra</span>
               </span>
