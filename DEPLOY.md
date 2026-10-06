@@ -145,7 +145,36 @@ To verify the deployment pipeline:
 
 ---
 
-## 6. Summary of Included Tooling
+## 6. GitHub Actions CI/CD Pipeline (`.github/workflows/pipeline.yml`)
+
+The repository includes a two-job CI/CD pipeline using the `sdd` CLI:
+
+### Job 1: `validate` (Runs on Pull Requests)
+- Validates spec syntax (`sdd validate`)
+- Generates and tests dry-run plans for all targets: **Docker**, **AWS ECS**, and **Kubernetes** (`sdd plan --json`)
+- Runs the full unit and integration test suite (`pytest tests/ -v`)
+- Fails the PR immediately on any security policy violation or schema defect without executing changes.
+
+### Job 2: `deploy-check` (Runs on push to `main`)
+- Validates that the runner's Docker daemon is reachable via `is_docker_daemon_reachable()`.
+- Runs live end-to-end container provisioning on the runner: `sdd deploy specification/infrastructure.yaml --target docker --yes --json`.
+- Automatically executes teardown cleanup (`terraform destroy`) in `if: always()` block.
+- Persists run history to Turso database.
+
+### Required GitHub Repository Secrets
+Navigate to **GitHub Repo** > **Settings** > **Secrets and variables** > **Actions** > **New repository secret**:
+
+| Secret Name | Required | Description |
+|---|---|---|
+| `OPENROUTER_API_KEY` | **Yes** | API key for AI synthesis engine (e.g. OpenRouter) |
+| `OPENROUTER_MODEL` | Optional | AI Model ID (defaults to `liquid/lfm-2.5-2.6b:free`) |
+| `OPENROUTER_FALLBACK_MODEL` | Optional | Fallback model ID (defaults to `meta-llama/llama-3.2-3b-instruct:free`) |
+| `TURSO_DATABASE_URL` | Optional | Turso database URL for run history persistence in CI |
+| `TURSO_AUTH_TOKEN` | Optional | Turso JWT authentication token |
+
+---
+
+## 7. Summary of Included Tooling
 
 | Tool | Version | Purpose |
 |---|---|---|
@@ -154,3 +183,4 @@ To verify the deployment pipeline:
 | **Terraform** | 1.7.5 | HCL validation, plan synthesis, and change calculation |
 | **Open Policy Agent (OPA)** | 0.62.0 | Zero-trust Rego compliance and security policy gating |
 | **Checkov** | >= 3.2.0 | AST static analysis for infrastructure misconfigurations |
+

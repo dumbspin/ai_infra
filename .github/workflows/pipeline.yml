@@ -1,0 +1,138 @@
+name: SDD-Infra Pipeline
+
+on:
+  pull_request:
+    paths:
+      - 'specification/**'
+      - 'policies/**'
+      - 'src/**'
+      - 'tests/**'
+  push:
+    branches: [ main ]
+    paths:
+      - 'specification/**'
+      - 'policies/**'
+      - 'src/**'
+      - 'tests/**'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: "Validate Spec & Code Quality"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python Dependencies & Register sdd CLI
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+
+      - name: Setup Terraform (v1.7.5)
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.7.5'
+
+      - name: Setup Open Policy Agent (v0.62.0)
+        uses: open-policy-agent/setup-opa@v2
+        with:
+          version: 'v0.62.0'
+
+      - name: Step 4 - SDD Validate Specification
+        run: sdd validate specification/infrastructure.yaml
+
+      - name: Step 5 - SDD Plan & Policy Gate (Target: Docker)
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODEL: ${{ secrets.OPENROUTER_MODEL || 'liquid/lfm-2.5-2.6b:free' }}
+          OPENROUTER_FALLBACK_MODEL: ${{ secrets.OPENROUTER_FALLBACK_MODEL || 'meta-llama/llama-3.2-3b-instruct:free' }}
+        run: |
+          echo "Executing SDD Plan for Docker target..."
+          sdd plan specification/infrastructure.yaml --target docker --json
+
+      - name: Step 6a - SDD Plan & Policy Gate (Target: AWS ECS)
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODEL: ${{ secrets.OPENROUTER_MODEL || 'liquid/lfm-2.5-2.6b:free' }}
+          OPENROUTER_FALLBACK_MODEL: ${{ secrets.OPENROUTER_FALLBACK_MODEL || 'meta-llama/llama-3.2-3b-instruct:free' }}
+        run: |
+          echo "Executing SDD Plan for AWS ECS target..."
+          sdd plan specification/infrastructure.yaml --target aws_ecs --json
+
+      - name: Step 6b - SDD Plan & Policy Gate (Target: Kubernetes)
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODEL: ${{ secrets.OPENROUTER_MODEL || 'liquid/lfm-2.5-2.6b:free' }}
+          OPENROUTER_FALLBACK_MODEL: ${{ secrets.OPENROUTER_FALLBACK_MODEL || 'meta-llama/llama-3.2-3b-instruct:free' }}
+        run: |
+          echo "Executing SDD Plan for Kubernetes target..."
+          sdd plan specification/infrastructure.yaml --target kubernetes --json
+
+      - name: Step 7 - Run Complete Pytest Suite
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+        run: pytest tests/ -v
+
+  deploy-check:
+    name: "Deploy Integration Check (Live Docker Apply)"
+    needs: validate
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python Dependencies & Register sdd CLI
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+
+      - name: Setup Terraform (v1.7.5)
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.7.5'
+
+      - name: Setup Open Policy Agent (v0.62.0)
+        uses: open-policy-agent/setup-opa@v2
+        with:
+          version: 'v0.62.0'
+
+      - name: Step 5 - Sanity Check Docker Daemon Reachability
+        run: |
+          python -c "from src.applier import is_docker_daemon_reachable; import sys; reachable = is_docker_daemon_reachable(); print(f'Docker daemon reachable on runner: {reachable}'); sys.exit(0 if reachable else 1)"
+
+      - name: Step 6 - SDD Deploy Live Infrastructure (Docker Target)
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODEL: ${{ secrets.OPENROUTER_MODEL || 'liquid/lfm-2.5-2.6b:free' }}
+          OPENROUTER_FALLBACK_MODEL: ${{ secrets.OPENROUTER_FALLBACK_MODEL || 'meta-llama/llama-3.2-3b-instruct:free' }}
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+        run: |
+          sdd deploy specification/infrastructure.yaml --target docker --yes --json
+
+      - name: Step 7 - Teardown & Clean Up Live Containers (Always Run)
+        if: always()
+        run: |
+          echo "Cleaning up any running containers and Terraform state created during test..."
+          if [ -d "terraform/generated" ]; then
+            cd terraform/generated
+            terraform destroy -auto-approve -no-color || true
+          fi
+          docker ps -a

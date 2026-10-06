@@ -32,7 +32,7 @@ from src.compiler.renderer import render_terraform, get_spec_commit_hash
 from src.validator import validate_and_plan
 from src.scanner.tf_scanner import scan_terraform
 from src.policy_runner import evaluate_policy
-from src.applier import apply_plan
+from src.applier import apply_plan, is_docker_daemon_reachable, DAEMON_UNAVAILABLE_MESSAGE
 from src.drift.detector import detect_drift, render_drift_markdown_report
 from src.db import init_db, record_run, get_recent_runs
 
@@ -467,6 +467,28 @@ def deploy(
     # Execute terraform apply
     gen_dir = result["gen_dir"]
     if target_name == "docker":
+        if not is_docker_daemon_reachable():
+            duration_ms = round((time.time() - t_start) * 1000, 1)
+            _persist_cli_run(
+                spec_commit=result["spec_commit"],
+                target=target_name,
+                status="blocked",
+                duration_ms=duration_ms,
+                dry_run=False,
+                failure_stage="deployment",
+                failure_detail=DAEMON_UNAVAILABLE_MESSAGE,
+            )
+            if as_json:
+                print(json.dumps({
+                    "passed": False,
+                    "status": "DAEMON_UNAVAILABLE",
+                    "error": DAEMON_UNAVAILABLE_MESSAGE,
+                    "target": target_name
+                }, indent=2))
+            else:
+                err_console.print(f"[bold yellow]⚠ LOCAL CLI REQUIRED:[/bold yellow] {DAEMON_UNAVAILABLE_MESSAGE}")
+            raise typer.Exit(code=1)
+
         applied, apply_logs = apply_plan(gen_dir)
     else:
         applied = True

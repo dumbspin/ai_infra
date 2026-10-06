@@ -24,7 +24,7 @@ from src.compiler.renderer import render_terraform, get_spec_commit_hash
 from src.validator import validate_and_plan
 from src.scanner.tf_scanner import scan_terraform, StaticScanError
 from src.policy_runner import evaluate_policy
-from src.applier import apply_plan, check_idempotency
+from src.applier import apply_plan, check_idempotency, is_docker_daemon_reachable, DAEMON_UNAVAILABLE_MESSAGE
 from src.drift.detector import detect_drift, render_drift_markdown_report
 from src.db import init_db, record_run, get_recent_runs, clear_runs
 
@@ -248,8 +248,7 @@ def health_check():
 @app.get("/api/docker/status")
 def get_docker_status():
     """Checks if local Docker daemon is online and responsive."""
-    res = subprocess.run(["docker", "ps"], capture_output=True, text=True, check=False)
-    connected = (res.returncode == 0)
+    connected = is_docker_daemon_reachable()
     return {
         "connected": connected,
         "details": "Docker Desktop Online" if connected else "Docker Daemon Offline"
@@ -517,6 +516,26 @@ def execute_pipeline_task(yaml_content: str, target: str = "docker", dry_run: bo
         pipeline_state["steps"]["deployment"] = "RUNNING"
 
         if target == "docker":
+            if not is_docker_daemon_reachable():
+                total_time = round((time.time() - start_time) * 1000, 1)
+                pipeline_state["telemetry"]["total_duration_ms"] = total_time
+                pipeline_state["status"] = "BLOCKED"
+                pipeline_state["current_step"] = "deployment"
+                pipeline_state["failed_step"] = "deployment"
+                pipeline_state["steps"]["deployment"] = "DAEMON_UNAVAILABLE"
+                pipeline_state["error_message"] = DAEMON_UNAVAILABLE_MESSAGE
+                log(f"[INFO] {DAEMON_UNAVAILABLE_MESSAGE}")
+                _persist_pipeline_run(
+                    spec_commit=commit_tag,
+                    target=target,
+                    status="blocked",
+                    duration_ms=total_time,
+                    dry_run=False,
+                    failure_stage="deployment",
+                    failure_detail=DAEMON_UNAVAILABLE_MESSAGE,
+                )
+                return
+
             log("Applying plan to live local Docker engine...")
             applied, apply_logs = apply_plan(gen_dir)
             if not applied:

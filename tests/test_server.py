@@ -339,6 +339,99 @@ def test_policy_toggle_allows_violating_spec_when_disabled(monkeypatch):
     assert active_policies["no_ssh_exposed"]["enabled"] is True
 
 
+def test_docker_stage5_stops_cleanly_when_daemon_unreachable(monkeypatch):
+    """
+    Asserts that when Docker daemon is unreachable, Stage 5 stops with DAEMON_UNAVAILABLE,
+    displays the helpful local CLI message, records 'blocked' in history, and never invokes terraform apply.
+    """
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    from unittest.mock import MagicMock
+    import src.server as server_mod
+
+    mock_is_reachable = MagicMock(return_value=False)
+    mock_apply = MagicMock(return_value=(True, "should not be called"))
+
+    monkeypatch.setattr(server_mod, "is_docker_daemon_reachable", mock_is_reachable)
+    monkeypatch.setattr(server_mod, "apply_plan", mock_apply)
+
+    valid_yaml = """
+spec_version: "1.0"
+application: ecommerce-daemon-test
+environment: production
+services:
+  web:
+    replicas: 1
+    image: nginx:1.25
+security:
+  public_access: false
+  ssh: false
+metadata:
+  owner: platform-team
+  created_at: "2026-10-06T00:00:00Z"
+"""
+    server_mod.execute_pipeline_task(valid_yaml, target="docker", dry_run=False)
+
+    # 1. Assert terraform apply was never called
+    mock_apply.assert_not_called()
+
+    # 2. Assert distinct DAEMON_UNAVAILABLE status (NOT EXECUTION DENIED)
+    assert server_mod.pipeline_state["status"] == "BLOCKED"
+    assert server_mod.pipeline_state["steps"]["deployment"] == "DAEMON_UNAVAILABLE"
+    assert server_mod.pipeline_state["failed_step"] == "deployment"
+
+    # 3. Assert clear, actionable error message without rollback warnings
+    expected_msg = (
+        "No Docker daemon reachable in this environment. This target requires local "
+        "infrastructure access — run `sdd deploy --target docker` from your own machine "
+        "to complete stages 5-6."
+    )
+    assert server_mod.pipeline_state["error_message"] == expected_msg
+    assert "Automatic rollback disabled" not in server_mod.pipeline_state["error_message"]
+
+
+def test_docker_stage5_proceeds_when_daemon_reachable(monkeypatch):
+    """
+    Asserts that when Docker daemon is reachable, the pipeline proceeds past the check
+    and invokes apply_plan cleanly.
+    """
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    from unittest.mock import MagicMock
+    import src.server as server_mod
+
+    mock_is_reachable = MagicMock(return_value=True)
+    mock_apply = MagicMock(return_value=(True, "Apply complete! Resources: 1 added, 0 changed, 0 destroyed."))
+
+    monkeypatch.setattr(server_mod, "is_docker_daemon_reachable", mock_is_reachable)
+    monkeypatch.setattr(server_mod, "apply_plan", mock_apply)
+
+    valid_yaml = """
+spec_version: "1.0"
+application: ecommerce-daemon-test2
+environment: production
+services:
+  web:
+    replicas: 1
+    image: nginx:1.25
+security:
+  public_access: false
+  ssh: false
+metadata:
+  owner: platform-team
+  created_at: "2026-10-06T00:00:00Z"
+"""
+    server_mod.execute_pipeline_task(valid_yaml, target="docker", dry_run=False)
+
+    # 1. Assert terraform apply was invoked
+    mock_apply.assert_called_once()
+
+    # 2. Assert pipeline succeeded all the way through
+    assert server_mod.pipeline_state["status"] == "SUCCESS"
+    assert server_mod.pipeline_state["steps"]["deployment"] == "SUCCESS"
+    assert server_mod.pipeline_state["steps"]["verification"] == "SUCCESS"
+    assert server_mod.pipeline_state["steps"]["drift_check"] == "SUCCESS"
+
+
+
 
 
 

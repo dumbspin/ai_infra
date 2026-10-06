@@ -34,18 +34,19 @@ export default function PipelineStepper({
 
   const completedCount = STAGES.filter(s => steps[s.id] === "SUCCESS").length;
   const isRunning = pipelineStatus === "RUNNING";
-  const isFailed = pipelineStatus === "FAILED";
+  const isFailed = pipelineStatus === "FAILED" || pipelineStatus === "BLOCKED" || Boolean(failedStep);
   const isSuccess = pipelineStatus === "SUCCESS";
-
-  // Automatically open logs when a failure occurs so the user gets immediate failure diagnostics
-  useEffect(() => {
-    if (isFailed) {
-      setShowLogs(true);
-    }
-  }, [isFailed]);
 
   const activeFailedStep = failedStep || (isFailed ? currentStep : null);
   const failedStageInfo = STAGES.find(s => s.id === activeFailedStep);
+
+  const isDaemonUnavailable =
+    steps.deployment === "DAEMON_UNAVAILABLE" ||
+    (activeFailedStep === "deployment" && (
+      errorMessage?.toLowerCase().includes("no docker daemon reachable") ||
+      errorMessage?.toLowerCase().includes("local cli required") ||
+      errorMessage?.toLowerCase().includes("daemon unavailable")
+    ));
 
 
   // Compute active filter count
@@ -239,11 +240,31 @@ export default function PipelineStepper({
       <div className="ref-dark-card rounded-[26px] p-4 sm:p-5 flex flex-col justify-between">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-white/[0.06] mb-3">
           <div className="flex items-center space-x-2 text-xs">
-            <span className={`w-2 h-2 rounded-full ${isFailed ? "bg-red-500 animate-ping" : isRunning ? "bg-[#b8ff22] animate-pulse" : isSuccess ? "bg-green-400" : "bg-slate-500"}`} />
+            <span className={`w-2 h-2 rounded-full ${
+              isDaemonUnavailable 
+                ? "bg-amber-400 animate-pulse" 
+                : isFailed 
+                ? "bg-red-500 animate-ping" 
+                : isRunning 
+                ? "bg-[#b8ff22] animate-pulse" 
+                : isSuccess 
+                ? "bg-green-400" 
+                : "bg-slate-500"
+            }`} />
             <span className="text-white font-bold font-sans uppercase tracking-wider text-[11px]">Execution Timeline</span>
             <span className="text-slate-500">•</span>
-            <span className={`font-mono text-[11px] ${isFailed ? "text-red-400 font-bold" : isSuccess ? "text-green-300" : "text-slate-400"}`}>
-              {isFailed 
+            <span className={`font-mono text-[11px] ${
+              isDaemonUnavailable 
+                ? "text-amber-300 font-bold" 
+                : isFailed 
+                ? "text-red-400 font-bold" 
+                : isSuccess 
+                ? "text-green-300" 
+                : "text-slate-400"
+            }`}>
+              {isDaemonUnavailable
+                ? "⚠ Stage 05 (Docker Runtime): Local Docker daemon required for live container provisioning"
+                : isFailed 
                 ? `✕ Pipeline Execution Blocked in Stage ${failedStageInfo?.stepNum || ""}: ${failedStageInfo?.title || "Security/Validation Gate"}`
                 : isSuccess 
                 ? `${completedCount}/6 stages completed successfully` 
@@ -257,12 +278,14 @@ export default function PipelineStepper({
             <button
               onClick={() => setShowLogs(!showLogs)}
               className={`text-[11px] px-3 py-1 rounded-full border flex items-center space-x-1.5 transition-colors font-mono ${
-                isFailed
+                isDaemonUnavailable
+                  ? "bg-amber-950/40 hover:bg-amber-900/60 text-amber-300 border-amber-500/40"
+                  : isFailed
                   ? "bg-red-950/40 hover:bg-red-900/60 text-red-300 border-red-500/40"
                   : "bg-[#171b26] hover:bg-[#202636] text-slate-300 border-white/[0.08]"
               }`}
             >
-              <Terminal className={`w-3 h-3 ${isFailed ? "text-red-400" : "text-[#b8ff22]"}`} />
+              <Terminal className={`w-3 h-3 ${isDaemonUnavailable ? "text-amber-400" : isFailed ? "text-red-400" : "text-[#b8ff22]"}`} />
               <span>{showLogs ? "Hide Console" : `Console (${logs.length})`}</span>
               {showLogs ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
             </button>
@@ -273,15 +296,18 @@ export default function PipelineStepper({
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
           {filteredStages.map((st) => {
             const status = steps[st.id] || "IDLE";
-            const isThisFailed = st.id === activeFailedStep || status === "FAILED";
-            const isStepActive = currentStep === st.id && !isFailed;
+            const isDaemonUnavail = st.id === "deployment" && (status === "DAEMON_UNAVAILABLE" || (activeFailedStep === "deployment" && isDaemonUnavailable));
+            const isThisFailed = !isDaemonUnavail && (st.id === activeFailedStep || status === "FAILED");
+            const isStepActive = currentStep === st.id && !isFailed && !isDaemonUnavail;
             const isStepSuccess = status === "SUCCESS";
 
             return (
               <div
                 key={st.id}
                 className={`p-3 rounded-2xl border transition-all flex items-center justify-between ${
-                  isThisFailed
+                  isDaemonUnavail
+                    ? "bg-[#2a2210] border-amber-500/50 shadow-lg shadow-amber-500/10 ring-1 ring-amber-500/40"
+                    : isThisFailed
                     ? "bg-[#281414] border-red-500/50 shadow-lg shadow-red-500/10 ring-1 ring-red-500/40"
                     : isStepSuccess
                     ? "bg-[#142218] border-green-500/30"
@@ -292,19 +318,23 @@ export default function PipelineStepper({
               >
                 <div>
                   <span className={`text-[9px] font-mono font-bold block ${
-                    isThisFailed ? "text-red-400 font-extrabold" : isStepSuccess ? "text-green-400" : isStepActive ? "text-[#b8ff22]" : "text-slate-500"
+                    isDaemonUnavail ? "text-amber-400 font-extrabold" : isThisFailed ? "text-red-400 font-extrabold" : isStepSuccess ? "text-green-400" : isStepActive ? "text-[#b8ff22]" : "text-slate-500"
                   }`}>
                     {st.stepNum}
                   </span>
                   <span className={`text-xs font-bold font-sans ${
-                    isThisFailed ? "text-red-200 font-extrabold" : isStepSuccess ? "text-white" : isStepActive ? "text-white font-extrabold" : "text-slate-400"
+                    isDaemonUnavail ? "text-amber-200 font-extrabold" : isThisFailed ? "text-red-200 font-extrabold" : isStepSuccess ? "text-white" : isStepActive ? "text-white font-extrabold" : "text-slate-400"
                   }`}>
                     {st.title}
                   </span>
                 </div>
 
                 <div className="shrink-0 ml-2">
-                  {isThisFailed ? (
+                  {isDaemonUnavail ? (
+                    <div className="w-5 h-5 rounded-full bg-amber-500 text-black flex items-center justify-center font-bold">
+                      <AlertTriangle className="w-3 h-3 stroke-[3]" />
+                    </div>
+                  ) : isThisFailed ? (
                     <div className="w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center font-bold animate-pulse">
                       <X className="w-3 h-3 stroke-[3]" />
                     </div>
@@ -327,21 +357,35 @@ export default function PipelineStepper({
 
         {/* ── High-Visibility Failure Diagnostic Card ── */}
         {isFailed && (
-          <div className="mt-3 p-4 rounded-2xl bg-[#231215] border border-red-500/40 text-red-300 flex flex-col sm:flex-row sm:items-start justify-between gap-3 animate-in fade-in duration-200 shadow-xl">
+          <div className={`mt-3 p-4 rounded-2xl ${
+            isDaemonUnavailable 
+              ? "bg-[#231e12] border-amber-500/40 text-amber-200 shadow-amber-500/5" 
+              : "bg-[#231215] border-red-500/40 text-red-300 shadow-red-500/5"
+          } border flex flex-col sm:flex-row sm:items-start justify-between gap-3 animate-in fade-in duration-200 shadow-xl`}>
             <div className="flex items-start space-x-3">
-              <div className="w-8 h-8 rounded-xl bg-red-500/20 text-red-400 border border-red-500/30 flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
-                <AlertTriangle className="w-4 h-4 text-red-400 animate-bounce" />
+              <div className={`w-8 h-8 rounded-xl ${
+                isDaemonUnavailable 
+                  ? "bg-amber-500/20 text-amber-400 border-amber-500/30" 
+                  : "bg-red-500/20 text-red-400 border-red-500/30"
+              } border flex items-center justify-center shrink-0 mt-0.5 shadow-sm`}>
+                <AlertTriangle className={`w-4 h-4 ${isDaemonUnavailable ? "text-amber-400" : "text-red-400"} animate-bounce`} />
               </div>
               <div className="space-y-1">
                 <div className="flex items-center space-x-2">
                   <span className="text-xs font-black text-white uppercase tracking-wider font-sans">
-                    Pipeline Failure in Stage {failedStageInfo?.stepNum || ""}: {failedStageInfo?.title || activeFailedStep || "Security Gate"}
+                    {isDaemonUnavailable 
+                      ? "Environment Notice in Stage 05: Docker Runtime" 
+                      : `Pipeline Failure in Stage ${failedStageInfo?.stepNum || ""}: ${failedStageInfo?.title || activeFailedStep || "Security Gate"}`}
                   </span>
-                  <span className="px-2 py-0.5 rounded-full bg-red-500 text-white font-mono text-[9px] font-extrabold tracking-wider uppercase">
-                    Execution Denied
+                  <span className={`px-2 py-0.5 rounded-full ${
+                    isDaemonUnavailable 
+                      ? "bg-amber-500 text-black" 
+                      : "bg-red-500 text-white"
+                  } font-mono text-[9px] font-extrabold tracking-wider uppercase`}>
+                    {isDaemonUnavailable ? "LOCAL CLI REQUIRED" : "Execution Denied"}
                   </span>
                 </div>
-                <p className="text-xs font-mono text-red-200/90 whitespace-pre-wrap leading-relaxed">
+                <p className={`text-xs font-mono ${isDaemonUnavailable ? "text-amber-100/90" : "text-red-200/90"} whitespace-pre-wrap leading-relaxed`}>
                   {errorMessage || "Pipeline stopped due to security guardrail or schema validation failure."}
                 </p>
               </div>
@@ -349,7 +393,11 @@ export default function PipelineStepper({
 
             <button
               onClick={() => setShowLogs(true)}
-              className="self-end sm:self-center px-3.5 py-1.5 rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-500/40 text-xs font-bold font-mono shrink-0 transition-colors shadow-sm flex items-center space-x-1"
+              className={`self-end sm:self-center px-3.5 py-1.5 rounded-full ${
+                isDaemonUnavailable 
+                  ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border-amber-500/40" 
+                  : "bg-red-500/20 hover:bg-red-500/30 text-red-200 border-red-500/40"
+              } border text-xs font-bold font-mono shrink-0 transition-colors shadow-sm flex items-center space-x-1`}
             >
               <Terminal className="w-3 h-3" />
               <span>Trace in Console</span>
