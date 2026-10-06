@@ -219,7 +219,17 @@ def render_aws_ecs_terraform(resource_plan: Dict[str, Any], spec_commit: Optiona
         commit_tag = spec_commit or resource.get("tags", {}).get("spec_commit") or resource_plan.get("metadata", {}).get("spec_commit") or get_spec_commit_hash()
 
         ingress_cidr = '["0.0.0.0/0"]' if public_access else '["10.0.0.0/16"]'
-        ssh_cidr = '["0.0.0.0/0"]' if ssh_enabled else '[]'
+        ssh_block = ""
+        if ssh_enabled:
+            ssh_block = """
+
+  ingress {
+    description = "SSH Access"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }"""
 
         sg_block = f"""
 resource "aws_security_group" "{ident}_sg" {{
@@ -232,15 +242,7 @@ resource "aws_security_group" "{ident}_sg" {{
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = {ingress_cidr}
-  }}
-
-  ingress {{
-    description = "SSH Access"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = {ssh_cidr}
-  }}
+  }}{ssh_block}
 
   egress {{
     from_port   = 0

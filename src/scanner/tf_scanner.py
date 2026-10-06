@@ -38,9 +38,9 @@ def scan_terraform(
         # Check 1: Wildcard / Public Ingress
         if allow_public_ingress_check:
             has_public_access = (
-                bool(re.search(r'public_access\s*=\s*true', tf_content, re.IGNORECASE)) or
+                bool(re.search(r'public_access\s*=\s*["\']?true["\']?', tf_content, re.IGNORECASE)) or
                 bool(re.search(r'label\s*=\s*["\']public_access["\']\s+value\s*=\s*["\']true["\']', tf_content, re.IGNORECASE)) or
-                bool(re.search(r'cidr_blocks\s*=\s*\[["\']0\.0\.0\.0/0["\']\]', tf_content))
+                bool(re.search(r'ingress\s*\{[^}]*cidr_blocks\s*=\s*\[["\']0\.0\.0\.0/0["\']\]', tf_content, re.DOTALL))
             )
             if has_public_access:
                 findings.append({
@@ -55,9 +55,9 @@ def scan_terraform(
         # Check 2: Direct SSH Access (Port 22)
         if allow_ssh_check:
             has_ssh = (
-                bool(re.search(r'ssh_enabled\s*=\s*true', tf_content, re.IGNORECASE)) or
+                bool(re.search(r'ssh_enabled\s*=\s*["\']?true["\']?', tf_content, re.IGNORECASE)) or
                 bool(re.search(r'label\s*=\s*["\']ssh_enabled["\']\s+value\s*=\s*["\']true["\']', tf_content, re.IGNORECASE)) or
-                bool(re.search(r'from_port\s*=\s*22\b', tf_content)) or
+                bool(re.search(r'ingress\s*\{[^}]*from_port\s*=\s*22\b', tf_content, re.DOTALL)) or
                 bool(re.search(r'internal\s*=\s*22\b', tf_content))
             )
             if has_ssh:
