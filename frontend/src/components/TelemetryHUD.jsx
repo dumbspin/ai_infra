@@ -12,13 +12,22 @@ export default function TelemetryHUD({
   violations = [],
   driftResult = {},
   declaredServicesCount = 3,
-  targetUnitsCount = 5
+  targetUnitsCount = 5,
+  runHistory = []
 }) {
   const modelName = telemetry.model || "liquid/lfm-2.5-2.6b:free";
   const inferTime = telemetry.inference_time_ms ? `${telemetry.inference_time_ms} ms` : "1,840 ms";
   const liveCount = containers.length > 0 ? (containers.length < 10 ? `0${containers.length}` : `${containers.length}`) : "00";
   const isViolated = violations.length > 0;
   const isDrifted = driftResult?.drift_detected;
+
+  // Real computation from persistent run history
+  const totalRuns = runHistory?.length || 0;
+  const passedRuns = totalRuns > 0 ? runHistory.filter(r => r.status === "passed" || r.status === "deployed").length : 0;
+  const passRate = totalRuns > 0 ? Math.round((passedRuns / totalRuns) * 100) : 100;
+  const statusDisplay = isViolated 
+    ? `${violations.length} Violations` 
+    : (totalRuns > 0 ? `${passRate}% Pass Rate` : "100% Compliant");
 
   return (
     <div className="space-y-6">
@@ -185,9 +194,9 @@ export default function TelemetryHUD({
         <div className="ref-dark-card rounded-[28px] p-5 flex flex-col justify-between min-h-[190px] relative overflow-hidden">
           <div className="flex items-start justify-between">
             <div>
-              <span className="text-[11px] font-medium text-slate-400 block font-sans">Deployment Status</span>
+              <span className="text-[11px] font-medium text-slate-400 block font-sans">Deployment Health</span>
               <div className="text-3xl font-black text-white tracking-tight mt-2 font-sans">
-                {isViolated ? `${violations.length} Violations` : "100% SLA"}
+                {statusDisplay}
               </div>
             </div>
             <button 

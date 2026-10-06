@@ -383,6 +383,7 @@ export default function Cockpit() {
             driftResult={driftResult}
             declaredServicesCount={declaredServicesCount}
             targetUnitsCount={targetUnitsCount}
+            runHistory={runHistory}
           />
         </div>
 
