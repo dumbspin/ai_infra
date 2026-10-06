@@ -3,6 +3,7 @@ services:
     name: sdd-infra
     runtime: docker
     plan: free
+    autoDeploy: true
     healthCheckPath: /health
     envVars:
       - key: OPENROUTER_API_KEY
