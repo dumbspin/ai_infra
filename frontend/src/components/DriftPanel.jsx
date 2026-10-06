@@ -1,95 +1,117 @@
-import React from 'react';
-import { AlertTriangle, CheckCircle2, Flame, Trash2, RefreshCw } from 'lucide-react';
+﻿import React from "react";
+import { AlertTriangle, CheckCircle2, Flame, Trash2, Zap } from "lucide-react";
+import { Card } from "./ui/card";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
 
 export default function DriftPanel({ driftResult, onSimulateDrift, onCleanDrift, onReconcileDrift, isSimulating, isReconciling }) {
   const isDrifted = driftResult?.drift_detected;
   const items = driftResult?.items || [];
-  const reconciledActions = driftResult?.reconciled_actions || [];
 
   return (
-    <div className={`rounded-xl border p-5 shadow-xl transition-all ${
+    <Card className={`rounded-3xl p-6 shadow-sm border transition-all ${
       isDrifted 
-        ? 'bg-amber-950/20 border-amber-500/40 text-amber-300' 
-        : 'bg-emerald-950/20 border-emerald-500/30 text-emerald-400'
+        ? "border-red-300 bg-red-50/30" 
+        : "border-slate-200 bg-white"
     }`}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-        <div className="flex items-center space-x-2 text-sm font-bold tracking-tight">
-          {isDrifted ? (
-            <AlertTriangle className="w-5 h-5 text-amber-400 animate-bounce" />
-          ) : (
-            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-          )}
-          <span>DRIFT STATUS & RECONCILIATION ENGINE</span>
+        <div className="flex items-center space-x-3">
+          <div className={`w-9 h-9 rounded-2xl flex items-center justify-center shadow-sm ${
+            isDrifted 
+              ? "bg-red-100 text-red-600 border border-red-200" 
+              : "bg-green-100 text-green-700 border border-green-200"
+          }`}>
+            {isDrifted ? (
+              <AlertTriangle className="w-4 h-4 animate-bounce" />
+            ) : (
+              <CheckCircle2 className="w-4 h-4" />
+            )}
+          </div>
+          <div>
+            <div className="flex items-center space-x-2">
+              <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">Drift Detection & Self-Healing Engine</h3>
+              {isDrifted ? (
+                <Badge variant="destructive" className="animate-pulse font-mono">
+                  DRIFT DETECTED
+                </Badge>
+              ) : (
+                <Badge variant="success" className="font-mono">
+                  ZERO DRIFT
+                </Badge>
+              )}
+            </div>
+            <p className="text-[10px] text-slate-500 font-mono">Continuous runtime state comparison against declared YAML spec</p>
+          </div>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2.5">
           {isDrifted && (
-            <button
+            <Button
               onClick={onReconcileDrift}
               disabled={isReconciling}
-              className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg shadow-lg shadow-emerald-600/20 flex items-center space-x-1.5 transition-colors disabled:opacity-50 animate-pulse"
-              title="Automatically heal infrastructure back to specification"
+              variant="secondary"
+              className="rounded-xl font-black gap-1.5 shadow-md shadow-green-600/20 bg-green-600 hover:bg-green-700 text-white animate-pulse"
+              title="Autonomous self-healing: prunes untracked containers"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isReconciling ? 'animate-spin' : ''}`} />
-              <span>{isReconciling ? 'Reconciling...' : '⚡ Auto-Reconcile & Self-Heal'}</span>
-            </button>
+              <Zap className={`w-3.5 h-3.5 fill-current ${isReconciling ? "animate-spin" : ""}`} />
+              <span>{isReconciling ? "Self-Healing..." : "⚡ Auto-Reconcile & Self-Heal"}</span>
+            </Button>
           )}
 
           {isDrifted && (
-            <button
+            <Button
               onClick={onCleanDrift}
-              className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-semibold rounded-lg border border-gray-700 flex items-center space-x-1.5 transition-colors"
+              variant="outline"
+              size="sm"
+              className="rounded-xl font-bold gap-1 text-slate-700"
             >
-              <Trash2 className="w-3.5 h-3.5 text-gray-400" />
+              <Trash2 className="w-3.5 h-3.5 text-slate-500" />
               <span>Prune Container</span>
-            </button>
+            </Button>
           )}
 
-          <button
+          <Button
             onClick={onSimulateDrift}
             disabled={isSimulating}
-            className="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-black font-bold text-xs rounded-lg shadow-lg shadow-amber-600/20 flex items-center space-x-1.5 transition-colors disabled:opacity-50"
+            variant="outline"
+            className="rounded-xl font-bold gap-1.5 bg-red-50 text-red-700 border-red-200 hover:bg-red-100 shadow-sm"
           >
-            <Flame className="w-4 h-4 fill-current" />
-            <span>{isSimulating ? 'Simulating...' : 'Simulate Drift'}</span>
-          </button>
+            <Flame className="w-3.5 h-3.5 fill-current text-red-600" />
+            <span>{isSimulating ? "Injecting..." : "Simulate Drift"}</span>
+          </Button>
         </div>
       </div>
 
       {!isDrifted ? (
-        <div className="flex items-center space-x-2 text-xs font-mono text-emerald-300">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>✓ No Drift Detected — Desired infrastructure specification matches live Docker state.</span>
+        <div className="flex items-center space-x-2.5 text-xs font-mono text-green-800 bg-green-50 p-3 rounded-2xl border border-green-200">
+          <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
+          <span>✓ Zero Drift Detected — Real-time Docker daemon state is 100% compliant with declared architecture.</span>
         </div>
       ) : (
-        <div className="space-y-3">
-          <div className="flex items-center space-x-2 text-xs font-mono font-bold text-amber-300">
-            <span>🚨 DRIFT DETECTED IN LIVE INFRASTRUCTURE</span>
-          </div>
-
-          <div className="space-y-2 bg-black/50 p-4 rounded-lg border border-amber-500/30 text-xs font-mono">
+        <div className="space-y-3 pt-2">
+          <div className="space-y-2 bg-white p-4 rounded-2xl border border-red-200 text-xs font-mono shadow-inner">
             {items.map((item, idx) => (
-              <div key={idx} className="flex flex-col space-y-1 pb-2 border-b border-gray-800 last:border-0 last:pb-0">
+              <div key={idx} className="flex flex-col space-y-1 pb-2 border-b border-slate-100 last:border-0 last:pb-0">
                 <div className="flex items-center space-x-2">
-                  <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 text-[10px] uppercase font-bold">
+                  <Badge variant="destructive" className="text-[9px] uppercase font-black">
                     {item.type}
-                  </span>
-                  <span className="text-white font-semibold">{item.resource}</span>
+                  </Badge>
+                  <span className="text-slate-900 font-bold">{item.resource}</span>
                 </div>
-                {item.type === 'count_mismatch' && (
-                  <p className="text-gray-400 pl-2">Expected Replicas: <strong className="text-white">{item.expected}</strong> | Actual Running: <strong className="text-amber-400">{item.actual}</strong></p>
+                {item.type === "count_mismatch" && (
+                  <p className="text-slate-600 pl-2">Expected Replicas: <strong className="text-slate-900">{item.expected}</strong> | Actual Running: <strong className="text-red-600">{item.actual}</strong></p>
                 )}
-                {item.type === 'unmanaged_resource' && (
-                  <p className="text-gray-400 pl-2">Unmanaged container detected in <strong className="text-amber-400">{item.source || 'docker'}</strong> daemon</p>
+                {item.type === "unmanaged_resource" && (
+                  <p className="text-slate-600 pl-2">Rogue untracked container detected in <strong className="text-red-600">{item.source || "docker"}</strong> daemon</p>
                 )}
-                {item.type === 'config_drift' && (
-                  <p className="text-gray-400 pl-2">Field '{item.field}' mismatch: expected <strong className="text-white">{String(item.expected)}</strong>, actual <strong className="text-amber-400">{String(item.actual)}</strong></p>
+                {item.type === "config_drift" && (
+                  <p className="text-slate-600 pl-2">Field '{item.field}' mismatch: expected <strong className="text-slate-900">{String(item.expected)}</strong>, actual <strong className="text-red-600">{String(item.actual)}</strong></p>
                 )}
               </div>
             ))}
           </div>
         </div>
       )}
-    </div>
+    </Card>
   );
 }

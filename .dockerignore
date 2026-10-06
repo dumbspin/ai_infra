@@ -1,0 +1,48 @@
+# Version Control
+.git
+.gitignore
+.github
+
+# Python Artifacts & Virtual Environments
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+myenv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Frontend (Frontend is built & served separately or deployed independently)
+frontend/
+node_modules/
+
+# Pipeline & Terraform Runtime Outputs
+generated/
+terraform/generated/
+terraform/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+
+# Database & History Storage
+*.db
+*.sqlite
+*.sqlite3
+data/*.json
+
+# IDE & Editor Settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment & Local Secrets
+.env
+.env.local

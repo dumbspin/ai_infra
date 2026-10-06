@@ -118,7 +118,7 @@ def openrouter_request(model: str, system: str, user: str, api_key: str) -> str:
             {"role": "user", "content": user}
         ]
     }
-    resp = requests.post(url, json=payload, headers=headers, timeout=30)
+    resp = requests.post(url, json=payload, headers=headers, timeout=10)
     resp.raise_for_status()
     data = resp.json()
     content = data["choices"][0]["message"]["content"].strip()
@@ -136,9 +136,14 @@ def openrouter_request(model: str, system: str, user: str, api_key: str) -> str:
 def call_llm_for_plan(
     spec: dict,
     model: Optional[str] = None,
-    max_retries: int = 2,
     force_refresh: bool = False
 ) -> dict:
+    """
+    Compiles an infrastructure spec into a candidate JSON resource plan.
+    Calls OpenRouter with system prompt & JSON schema. If schema validation fails
+    (JSONDecodeError or ValidationError), retries once with the exact error feedback.
+    Falls back to deterministic offline compiler if both attempts fail or no API key is present.
+    """
     h = spec_hash(spec)
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     cache_file = CACHE_DIR / f"{h}.json"
@@ -150,59 +155,60 @@ def call_llm_for_plan(
     api_key = os.getenv("OPENROUTER_API_KEY")
 
     schema = get_resource_plan_schema()
-    system_prompt = SYSTEM_PROMPT.format(resource_plan_schema=json.dumps(schema, indent=2))
+    base_system_prompt = SYSTEM_PROMPT.format(resource_plan_schema=json.dumps(schema, indent=2))
 
-    # If no API key set, use deterministic mock compiler for ₹0 offline development/testing
+    # If no API key set, use deterministic mock compiler for offline development/testing
     if not api_key:
         plan = mock_deterministic_compilation(spec)
         jsonschema.validate(instance=plan, schema=schema)
         cache_file.write_text(json.dumps(plan, indent=2), encoding="utf-8")
-        log_llm_call(h, "mock-offline", 0, "schema_valid", 0.0, None)
+        log_llm_call(h, "mock-offline", attempt=1, outcome="fallback_used", latency_ms=0.0, error=None)
         return plan
 
+    current_prompt = base_system_prompt
     last_error = None
-    for attempt in range(max_retries + 1):
-        prompt = system_prompt
-        if last_error:
-            prompt += f"\n\nYour previous output failed validation: {last_error}\nFix it."
 
+    for attempt in (1, 2):
         start_time = time.time()
         try:
-            raw = openrouter_request(model=model, system=prompt, user=json.dumps(spec), api_key=api_key)
+            raw = openrouter_request(model=model, system=current_prompt, user=json.dumps(spec), api_key=api_key)
             elapsed_ms = (time.time() - start_time) * 1000
+
             parsed = json.loads(raw)
             jsonschema.validate(instance=parsed, schema=schema)
 
+            # Successful schema validation
+            outcome = "schema_valid_first_try" if attempt == 1 else "schema_valid_on_retry"
             cache_file.write_text(json.dumps(parsed, indent=2), encoding="utf-8")
-            log_llm_call(h, model, attempt, "schema_valid", elapsed_ms, None)
+            log_llm_call(h, model, attempt=attempt, outcome=outcome, latency_ms=elapsed_ms, error=None)
             return parsed
-        except (requests.RequestException, json.JSONDecodeError, jsonschema.ValidationError) as e:
+
+        except (json.JSONDecodeError, jsonschema.ValidationError) as e:
             elapsed_ms = (time.time() - start_time) * 1000
             last_error = str(e)
-            outcome = "rate_limited" if "429" in last_error else ("schema_invalid" if isinstance(e, jsonschema.ValidationError) else "provider_error")
-            log_llm_call(h, model, attempt, outcome, elapsed_ms, last_error)
-            if attempt < max_retries:
-                time.sleep(2 ** attempt)
+            outcome = "schema_invalid"
+            log_llm_call(h, model, attempt=attempt, outcome=outcome, latency_ms=elapsed_ms, error=last_error)
 
-    # Try fallback model if main model failed
-    fallback_model = os.getenv("OPENROUTER_FALLBACK_MODEL", "qwen/qwen3.8-27b:free")
-    if fallback_model and fallback_model != model:
-        start_time = time.time()
-        try:
-            raw = openrouter_request(model=fallback_model, system=system_prompt, user=json.dumps(spec), api_key=api_key)
+            if attempt == 1:
+                # Construct retry prompt with exact error feedback addendum
+                current_prompt = (
+                    f"{base_system_prompt}\n\n"
+                    f"Your previous output failed validation with this error: {last_error}\n"
+                    f"Fix the output and return ONLY valid JSON matching the schema. No commentary, no markdown fences."
+                )
+
+        except requests.RequestException as e:
             elapsed_ms = (time.time() - start_time) * 1000
-            parsed = json.loads(raw)
-            jsonschema.validate(instance=parsed, schema=schema)
-            cache_file.write_text(json.dumps(parsed, indent=2), encoding="utf-8")
-            log_llm_call(h, fallback_model, 0, "schema_valid", elapsed_ms, None)
-            return parsed
-        except Exception as fallback_err:
-            log_llm_call(h, fallback_model, 0, "fallback_failed", 0.0, str(fallback_err))
+            last_error = str(e)
+            outcome = "rate_limited" if "429" in last_error else "provider_error"
+            log_llm_call(h, model, attempt=attempt, outcome=outcome, latency_ms=elapsed_ms, error=last_error)
+            if attempt == 1:
+                time.sleep(1)
 
-    # If API call retries failed, fallback to mock compiler for resiliency
+    # If both attempts failed, fall back to deterministic offline compiler
     plan = mock_deterministic_compilation(spec)
     jsonschema.validate(instance=plan, schema=schema)
     cache_file.write_text(json.dumps(plan, indent=2), encoding="utf-8")
-    log_llm_call(h, "fallback-mock", 0, "schema_valid", 0.0, last_error)
+    log_llm_call(h, "fallback-mock", attempt=2, outcome="fallback_used", latency_ms=0.0, error=last_error)
     return plan
 

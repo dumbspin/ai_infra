@@ -21,3 +21,8 @@ generated/llm_calls.jsonl
 
 # Node.js
 node_modules/
+frontend/dist/
+
+# Local DB & Build
+data/
+*.egg-info/

@@ -1,6 +1,8 @@
+import json
 import pytest
+from unittest.mock import patch
 from src.compiler.renderer import render_terraform
-from src.compiler.llm_client import call_llm_for_plan
+from src.compiler.llm_client import call_llm_for_plan, mock_deterministic_compilation
 
 
 def test_renderer_single_replica():
@@ -49,7 +51,8 @@ def test_renderer_multi_replica_expansion():
     assert tf_hcl.count('resource "docker_image"') == 1
 
 
-def test_offline_llm_client_mock():
+def test_offline_llm_client_mock(monkeypatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     spec = {
         "spec_version": "1.0",
         "application": "ecommerce",
@@ -120,4 +123,164 @@ def test_renderer_kubernetes():
     assert 'resource "kubernetes_service" "backend_service"' in hcl
     assert 'replicas = 3' in hcl
     assert 'type = "ClusterIP"' in hcl
+
+
+def test_renderer_spec_commit_tagging():
+    plan = {
+        "resources": [
+            {
+                "type": "docker_container",
+                "name": "web",
+                "replicas": 1,
+                "image": "nginx:latest",
+                "public_access": False,
+                "ssh_enabled": False,
+                "tags": {"owner": "devops-team", "spec_commit": "a1b2c3d"}
+            }
+        ]
+    }
+    # 1. Docker tagging
+    docker_hcl = render_terraform(plan, target="docker", spec_commit="a1b2c3d")
+    assert 'label = "owner"' in docker_hcl
+    assert 'value = "devops-team"' in docker_hcl
+    assert 'label = "spec_commit"' in docker_hcl
+    assert 'value = "a1b2c3d"' in docker_hcl
+
+    # 2. AWS ECS tagging
+    aws_hcl = render_terraform(plan, target="aws_ecs", spec_commit="a1b2c3d")
+    assert 'spec_commit  = "a1b2c3d"' in aws_hcl or 'spec_commit = "a1b2c3d"' in aws_hcl
+
+    # 3. Kubernetes tagging
+    k8s_hcl = render_terraform(plan, target="kubernetes", spec_commit="a1b2c3d")
+    assert 'spec_commit  = "a1b2c3d"' in k8s_hcl or 'spec_commit = "a1b2c3d"' in k8s_hcl
+
+
+def test_retry_with_feedback_success_on_second_attempt(monkeypatch):
+    """
+    Test: OpenRouter returns invalid schema on 1st call and valid schema on 2nd call.
+    Asserts:
+      (a) 2nd call's prompt contains the original validation error message
+      (b) final returned plan is the valid one from attempt 2
+      (c) offline fallback was NOT invoked
+    """
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-api-key-123")
+
+    sample_spec = {
+        "spec_version": "1.0",
+        "application": "ecommerce-test",
+        "environment": "production",
+        "services": {
+            "web": {
+                "replicas": 2,
+                "image": "nginx:1.25"
+            }
+        },
+        "security": {
+            "public_access": False,
+            "ssh": False
+        },
+        "metadata": {
+            "owner": "platform-team",
+            "created_at": "2026-09-22T00:00:00Z"
+        }
+    }
+
+    invalid_first_response = json.dumps({
+        "resources": [
+            {
+                "type": "docker_container",
+                "name": "web",
+                "unexpected_field": "invalid"
+            }
+        ]
+    })
+
+    valid_second_response = json.dumps({
+        "resources": [
+            {
+                "type": "docker_container",
+                "name": "web",
+                "replicas": 2,
+                "image": "nginx:1.25",
+                "public_access": False,
+                "ssh_enabled": False,
+                "tags": {
+                    "owner": "platform-team"
+                }
+            }
+        ]
+    })
+
+    call_prompts = []
+
+    def mock_openrouter(model, system, user, api_key):
+        call_prompts.append(system)
+        if len(call_prompts) == 1:
+            return invalid_first_response
+        return valid_second_response
+
+    with patch("src.compiler.llm_client.openrouter_request", side_effect=mock_openrouter) as mock_req, \
+         patch("src.compiler.llm_client.mock_deterministic_compilation", wraps=mock_deterministic_compilation) as mock_fallback:
+
+        plan = call_llm_for_plan(sample_spec, force_refresh=True)
+
+        # (a) Assert second call contains the original error message
+        assert mock_req.call_count == 2
+        assert "Your previous output failed validation with this error:" in call_prompts[1]
+
+        # (b) Assert final returned plan is the valid one from attempt 2
+        assert plan["resources"][0]["name"] == "web"
+        assert plan["resources"][0]["replicas"] == 2
+        assert plan["resources"][0]["tags"]["owner"] == "platform-team"
+
+        # (c) Assert offline fallback was NOT invoked
+        mock_fallback.assert_not_called()
+
+
+def test_retry_with_feedback_fallback_when_both_attempts_fail(monkeypatch):
+    """
+    Test: BOTH calls return invalid output.
+    Asserts:
+      (a) offline fallback IS invoked
+      (b) only one retry happened (mock called exactly 2 times total, not 3 or more)
+    """
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-api-key-123")
+
+    sample_spec = {
+        "spec_version": "1.0",
+        "application": "ecommerce-test",
+        "environment": "production",
+        "services": {
+            "web": {
+                "replicas": 2,
+                "image": "nginx:1.25"
+            }
+        },
+        "security": {
+            "public_access": False,
+            "ssh": False
+        },
+        "metadata": {
+            "owner": "platform-team",
+            "created_at": "2026-09-22T00:00:00Z"
+        }
+    }
+
+    invalid_response = "INVALID JSON PAYLOAD"
+
+    with patch("src.compiler.llm_client.openrouter_request", return_value=invalid_response) as mock_req, \
+         patch("src.compiler.llm_client.mock_deterministic_compilation", wraps=mock_deterministic_compilation) as mock_fallback:
+
+        plan = call_llm_for_plan(sample_spec, force_refresh=True)
+
+        # (b) Assert mock was called exactly twice total, not 3 or more times
+        assert mock_req.call_count == 2
+
+        # (a) Assert offline fallback IS invoked
+        mock_fallback.assert_called_once()
+        assert "resources" in plan
+        assert plan["resources"][0]["name"] == "web"
+        assert plan["resources"][0]["replicas"] == 2
+
+
 

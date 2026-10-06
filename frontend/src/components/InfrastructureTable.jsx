@@ -1,57 +1,75 @@
-import React from 'react';
-import { Container, RefreshCw } from 'lucide-react';
+﻿import React from "react";
+import { Container, RefreshCw } from "lucide-react";
+import { Card } from "./ui/card";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
 
 export default function InfrastructureTable({ containers = [], onRefresh, isLoading }) {
   return (
-    <div className="bg-dark-800 rounded-xl border border-gray-800 shadow-xl overflow-hidden">
+    <Card className="rounded-3xl shadow-sm border-slate-200 overflow-hidden bg-white">
       {/* Table Header */}
-      <div className="px-5 py-3 bg-dark-700/40 border-b border-gray-800 flex items-center justify-between">
-        <div className="flex items-center space-x-2 text-sm font-semibold text-white">
-          <Container className="w-4 h-4 text-emerald-400" />
-          <span>Live Infrastructure (Docker Containers)</span>
-          <span className="text-xs text-gray-400 font-mono">({containers.length} active)</span>
+      <div className="px-6 py-4 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <div className="w-8 h-8 rounded-xl bg-green-50 border border-green-200 flex items-center justify-center text-green-700 shadow-sm">
+            <Container className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="flex items-center space-x-2">
+              <span className="text-xs font-black text-slate-900 uppercase tracking-wider">Live Runtime Infrastructure</span>
+              <Badge variant="outline" className="text-[10px] px-2 py-0.5 rounded-full bg-white text-slate-600 border-slate-200 font-mono">
+                {containers.length} active units
+              </Badge>
+            </div>
+            <p className="text-[10px] text-slate-500 font-mono">Real-time Docker Daemon Container State</p>
+          </div>
         </div>
-        <button
+
+        <Button
           onClick={onRefresh}
           disabled={isLoading}
-          className="text-xs text-gray-400 hover:text-white flex items-center space-x-1.5 transition-colors"
+          variant="outline"
+          size="sm"
+          className="rounded-xl text-xs font-bold gap-1.5 shadow-sm"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-indigo-400' : ''}`} />
+          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin text-orange-600" : "text-slate-500"}`} />
           <span>Refresh</span>
-        </button>
+        </Button>
       </div>
 
       {/* Table Content */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto p-2 bg-white">
         <table className="w-full text-left border-collapse text-xs font-mono">
           <thead>
-            <tr className="bg-dark-900/60 border-b border-gray-800 text-gray-400 uppercase text-[10px] tracking-wider">
-              <th className="py-3 px-5 font-semibold">Resource Name</th>
-              <th className="py-3 px-5 font-semibold">Image Tag</th>
-              <th className="py-3 px-5 font-semibold text-center">Desired</th>
-              <th className="py-3 px-5 font-semibold text-center">Actual</th>
-              <th className="py-3 px-5 font-semibold">Status</th>
+            <tr className="border-b border-slate-200 text-slate-500 uppercase text-[10px] tracking-wider bg-slate-50/80 font-bold">
+              <th className="py-3 px-5">Resource Identifier</th>
+              <th className="py-3 px-5">Image & Tag</th>
+              <th className="py-3 px-5 text-center">Desired</th>
+              <th className="py-3 px-5 text-center">Actual</th>
+              <th className="py-3 px-5">Health State</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-800/60 text-gray-300">
+          <tbody className="divide-y divide-slate-100 text-slate-700">
             {containers.length === 0 ? (
               <tr>
-                <td colSpan={5} className="py-8 text-center text-gray-500 font-sans">
-                  No active containers detected. Run the pipeline to deploy infrastructure.
+                <td colSpan={5} className="py-10 text-center text-slate-400 font-sans">
+                  No active containers detected. Run the synthesis pipeline to deploy infrastructure.
                 </td>
               </tr>
             ) : (
               containers.map((c, idx) => (
-                <tr key={idx} className="hover:bg-dark-700/20 transition-colors">
-                  <td className="py-3 px-5 font-semibold text-white">{c.resource}</td>
-                  <td className="py-3 px-5 text-gray-400">{c.image}</td>
-                  <td className="py-3 px-5 text-center text-gray-400">{c.desired}</td>
-                  <td className="py-3 px-5 text-center text-emerald-400 font-bold">{c.actual}</td>
-                  <td className="py-3 px-5">
-                    <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-medium">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
+                  <td className="py-3.5 px-5 font-black text-slate-900 flex items-center space-x-2 font-sans">
+                    <span className="w-2 h-2 rounded-full bg-green-500" />
+                    <span>{c.resource}</span>
+                  </td>
+                  <td className="py-3.5 px-5 text-green-700 font-semibold">{c.image}</td>
+                  <td className="py-3.5 px-5 text-center text-slate-500 font-bold">{c.desired}</td>
+                  <td className="py-3.5 px-5 text-center text-green-700 font-black text-sm">{c.actual}</td>
+                  <td className="py-3.5 px-5">
+                    <Badge variant="success" className="gap-1 bg-green-50 text-green-700 border-green-200 font-extrabold text-[10px]">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
                       <span>{c.status}</span>
-                    </span>
+                    </Badge>
                   </td>
                 </tr>
               ))
@@ -59,6 +77,6 @@ export default function InfrastructureTable({ containers = [], onRefresh, isLoad
           </tbody>
         </table>
       </div>
-    </div>
+    </Card>
   );
 }

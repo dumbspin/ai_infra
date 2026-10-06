@@ -18,8 +18,10 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: Install Python Dependencies
-        run: pip install -r requirements.txt
+      - name: Install Python Dependencies & CLI
+        run: |
+          pip install -r requirements.txt
+          pip install -e .
 
       - name: Download Latest State
         uses: actions/download-artifact@v4
@@ -28,33 +30,5 @@ jobs:
           path: terraform/generated/
         continue-on-error: true
 
-      - name: Execute Drift Detection
-        run: |
-          python -c "
-          import json, os
-          from pathlib import Path
-          from src.loader import load_spec
-          from src.drift.detector import detect_drift, render_drift_markdown_report
-
-          spec = load_spec('specification/infrastructure.yaml')
-          state_path = Path('terraform/generated/terraform.tfstate')
-
-          if state_path.exists():
-              tfstate = json.loads(state_path.read_text())
-          else:
-              tfstate = {'resources': []}
-
-          result = detect_drift(spec, tfstate)
-          report = render_drift_markdown_report(result)
-
-          # Write to step summary
-          summary_file = os.getenv('GITHUB_STEP_SUMMARY')
-          if summary_file:
-              with open(summary_file, 'a') as f:
-                  f.write(report)
-
-          print(report)
-
-          if result.get('drift_detected'):
-              print('DRIFT_WARNING=true')
-          "
+      - name: Execute SDD Drift Detection
+        run: sdd drift --json
