@@ -60,7 +60,7 @@ export default function TopologyGraph({ containers = [] }) {
       </div>
 
       {/* Main Workflow Canvas Area */}
-      <div className="relative mt-4 rounded-2xl border border-slate-200 canvas-dot-grid p-4 sm:p-7 min-h-[440px] flex flex-col justify-between overflow-x-auto overflow-y-hidden select-none bg-slate-50/50">
+      <div className="relative mt-4 rounded-2xl border border-slate-200 canvas-dot-grid p-3 sm:p-7 min-h-0 sm:min-h-[440px] flex flex-col justify-between overflow-x-auto overflow-y-hidden select-none bg-slate-50/50">
         
         {/* SVG Wire Connectors Layer with Clean Slate/Orange Arrow Markers */}
         <svg 
@@ -128,7 +128,7 @@ export default function TopologyGraph({ containers = [] }) {
         </svg>
 
         {/* ── TOP SECTION: Floating Policy Guardrail Node ── */}
-        <div className="relative z-10 flex items-center mb-4 pl-4 sm:pl-28">
+        <div className="relative z-10 flex items-center mb-4 pl-0 sm:pl-28">
           <div className="flex items-center space-x-3">
             {/* Checklist micro-badge on wire */}
             <div className="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 text-[10px] font-mono shadow-sm">
@@ -303,7 +303,7 @@ export default function TopologyGraph({ containers = [] }) {
         </div>
 
         {/* ── BOTTOM SECTION: Continuous State Probe Node ── */}
-        <div className="relative z-10 flex items-center justify-end mt-4 pr-4 sm:pr-24">
+        <div className="relative z-10 flex items-center justify-end mt-4 pr-0 sm:pr-24">
           <div 
             onClick={() => setSelectedNode({
               type: "Live Runtime Probe",

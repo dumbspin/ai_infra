@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { SlidersHorizontal, Sparkles, ArrowUpRight, Check, Zap, ShieldCheck, ArrowLeft } from "lucide-react";
+import AnimatedCounter, { useAnimatedNumber } from "./ui/AnimatedCounter";
 
 export default function TelemetryHUD({ 
   telemetry = {}, 
@@ -16,18 +17,26 @@ export default function TelemetryHUD({
   runHistory = []
 }) {
   const modelName = telemetry.model || "liquid/lfm-2.5-2.6b:free";
-  const inferTime = telemetry.inference_time_ms ? `${telemetry.inference_time_ms} ms` : "1,840 ms";
-  const liveCount = containers.length > 0 ? (containers.length < 10 ? `0${containers.length}` : `${containers.length}`) : "00";
+  const rawLatencyMs = telemetry.inference_time_ms || 1840;
+  const animatedLatency = useAnimatedNumber(rawLatencyMs);
+  const animatedContainersCount = useAnimatedNumber(containers.length);
+  
+  const formattedLiveCount = Math.round(animatedContainersCount) > 0 
+    ? (Math.round(animatedContainersCount) < 10 ? `0${Math.round(animatedContainersCount)}` : `${Math.round(animatedContainersCount)}`) 
+    : "00";
+
   const isViolated = violations.length > 0;
   const isDrifted = driftResult?.drift_detected;
 
   // Real computation from persistent run history
   const totalRuns = runHistory?.length || 0;
   const passedRuns = totalRuns > 0 ? runHistory.filter(r => r.status === "passed" || r.status === "deployed").length : 0;
-  const passRate = totalRuns > 0 ? Math.round((passedRuns / totalRuns) * 100) : 100;
+  const rawPassRate = totalRuns > 0 ? Math.round((passedRuns / totalRuns) * 100) : 100;
+  const animatedPassRate = useAnimatedNumber(rawPassRate);
+
   const statusDisplay = isViolated 
     ? `${violations.length} Violations` 
-    : (totalRuns > 0 ? `${passRate}% Pass Rate` : "100% Compliant");
+    : (totalRuns > 0 ? `${Math.round(animatedPassRate)}% Pass Rate` : "100% Compliant");
 
   return (
     <div className="space-y-6">
@@ -36,13 +45,13 @@ export default function TelemetryHUD({
         <div className="flex items-center space-x-3.5">
           <Link
             to="/"
-            className="group w-9 h-9 rounded-full bg-[#151822] hover:bg-[#1e2332] border border-white/[0.08] text-slate-300 hover:text-white flex items-center justify-center transition-all shadow-sm hover:scale-105 active:scale-95"
+            className="group w-9 h-9 rounded-full bg-[#151822] hover:bg-[#1e2332] border border-white/[0.08] text-slate-300 hover:text-white flex items-center justify-center transition-all shadow-sm hover:scale-105 active:scale-95 shrink-0"
             title="Back to Landing Page"
             aria-label="Back to Landing Page"
           >
             <ArrowLeft className="w-4 h-4 text-[#b8ff22] group-hover:-translate-x-0.5 transition-transform" />
           </Link>
-          <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight font-sans">
+          <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight font-sans">
             Infrastructure
           </h1>
         </div>
@@ -53,7 +62,7 @@ export default function TelemetryHUD({
               const el = document.getElementById("section-opa");
               if (el) el.scrollIntoView({ behavior: "smooth" });
             }}
-            className="w-9 h-9 rounded-full bg-[#151822] hover:bg-[#1e2330] border border-white/[0.08] flex items-center justify-center text-slate-300 transition-colors"
+            className="w-9 h-9 rounded-full bg-[#151822] hover:bg-[#1e2330] border border-white/[0.08] flex items-center justify-center text-slate-300 transition-colors shrink-0"
             title="Configure Security Guardrails"
           >
             <SlidersHorizontal className="w-4 h-4" />
@@ -63,11 +72,11 @@ export default function TelemetryHUD({
           <button
             onClick={onSynthesize}
             disabled={isRunning}
-            className="flex items-center space-x-2 px-5 py-2 rounded-full bg-[#151822] hover:bg-[#1f2433] border border-white/[0.08] text-white text-xs font-bold transition-all shadow-sm disabled:opacity-50 hover:scale-[1.02] active:scale-[0.98]"
+            className="flex items-center space-x-2 px-4 sm:px-5 py-2 rounded-full bg-[#151822] hover:bg-[#1f2433] border border-white/[0.08] text-white text-xs font-bold transition-all shadow-sm disabled:opacity-50 hover:scale-[1.02] active:scale-[0.98]"
             title="Synthesizes candidate plan & verifies OPA without deploying live containers"
           >
-            <Sparkles className="w-3.5 h-3.5 text-[#b8ff22]" />
-            <span>{isRunning ? "Synthesizing..." : "Synthesize Infrastructure (Dry-Run)"}</span>
+            <Sparkles className="w-3.5 h-3.5 text-[#b8ff22] shrink-0" />
+            <span className="whitespace-nowrap">{isRunning ? "Synthesizing..." : "Synthesize (Dry-Run)"}</span>
           </button>
         </div>
       </div>
@@ -82,8 +91,8 @@ export default function TelemetryHUD({
               <span className="text-[11px] font-medium text-slate-400 block font-sans">Containers Running</span>
               <span className="text-[10px] font-mono text-slate-500 font-bold">{declaredServicesCount} Svcs • {targetUnitsCount} Target</span>
             </div>
-            <div className="text-3xl font-black text-white tracking-tight mt-2 font-sans">
-              {liveCount} <span className="text-lg font-bold text-[#b8ff22]">Live</span>
+            <div className="text-2xl sm:text-3xl font-black text-white tracking-tight mt-2 font-sans">
+              {formattedLiveCount} <span className="text-base sm:text-lg font-bold text-[#b8ff22]">Live</span>
             </div>
           </div>
 
@@ -133,8 +142,8 @@ export default function TelemetryHUD({
         <div className="ref-dark-card rounded-[28px] p-5 flex flex-col justify-between min-h-[190px]">
           <div>
             <span className="text-[11px] font-medium text-slate-400 block font-sans">Synthesis Latency</span>
-            <div className="text-3xl font-black text-white tracking-tight mt-2 font-sans">
-              {inferTime}
+            <div className="text-2xl sm:text-3xl font-black text-white tracking-tight mt-2 font-sans font-mono">
+              <AnimatedCounter value={animatedLatency} suffix=" ms" />
             </div>
           </div>
 
@@ -165,8 +174,8 @@ export default function TelemetryHUD({
         <div className="ref-dark-card rounded-[28px] p-5 flex flex-col justify-between min-h-[190px]">
           <div>
             <span className="text-[11px] font-medium text-slate-400 block font-sans">Synthesis Cost</span>
-            <div className="text-3xl font-black text-white tracking-tight mt-2 font-sans">
-              ₹0.00 <span className="text-base font-medium text-slate-400">/ $0.00</span>
+            <div className="text-2xl sm:text-3xl font-black text-white tracking-tight mt-2 font-sans">
+              ₹0.00 <span className="text-sm sm:text-base font-medium text-slate-400">/ $0.00</span>
             </div>
           </div>
 
@@ -195,7 +204,7 @@ export default function TelemetryHUD({
           <div className="flex items-start justify-between">
             <div>
               <span className="text-[11px] font-medium text-slate-400 block font-sans">Deployment Health</span>
-              <div className="text-3xl font-black text-white tracking-tight mt-2 font-sans">
+              <div className="text-2xl sm:text-3xl font-black text-white tracking-tight mt-2 font-sans">
                 {statusDisplay}
               </div>
             </div>
@@ -204,7 +213,7 @@ export default function TelemetryHUD({
                 const el = document.getElementById("section-runtime");
                 if (el) el.scrollIntoView({ behavior: "smooth" });
               }}
-              className="text-slate-500 hover:text-white transition-colors"
+              className="text-slate-500 hover:text-white transition-colors p-1"
               title="Jump to Cockpit"
             >
               <ArrowUpRight className="w-4 h-4" />
@@ -212,18 +221,18 @@ export default function TelemetryHUD({
           </div>
 
           <div className="flex items-end justify-between gap-2 mt-4">
-            <div className="flex items-end space-x-1.5">
-              <div className="w-12 h-14 rounded-2xl bg-[#181d28] border border-white/[0.06] flex flex-col items-center justify-between p-1.5 text-center">
+            <div className="flex items-end space-x-1.5 shrink-0">
+              <div className="w-10 sm:w-12 h-13 sm:h-14 rounded-2xl bg-[#181d28] border border-white/[0.06] flex flex-col items-center justify-between p-1.5 text-center">
                 <span className="text-[9px] text-slate-500 font-mono">#vpc</span>
                 <span className="text-[8px] text-slate-400 font-medium">Bridge</span>
               </div>
 
-              <div className="w-14 h-16 rounded-2xl bg-[#b8ff22] text-black shadow-lg shadow-[#b8ff22]/20 flex flex-col items-center justify-between p-1.5 text-center">
+              <div className="w-12 sm:w-14 h-15 sm:h-16 rounded-2xl bg-[#b8ff22] text-black shadow-lg shadow-[#b8ff22]/20 flex flex-col items-center justify-between p-1.5 text-center">
                 <span className="text-[10px] font-mono font-black">#rego</span>
-                <span className="text-[9px] font-black uppercase">{isViolated ? "Denied" : "Active"}</span>
+                <span className="text-[8px] sm:text-[9px] font-black uppercase">{isViolated ? "Denied" : "Active"}</span>
               </div>
 
-              <div className="w-12 h-14 rounded-2xl bg-[#181d28] border border-white/[0.06] flex flex-col items-center justify-between p-1.5 text-center">
+              <div className="w-10 sm:w-12 h-13 sm:h-14 rounded-2xl bg-[#181d28] border border-white/[0.06] flex flex-col items-center justify-between p-1.5 text-center">
                 <span className="text-[9px] text-slate-500 font-mono">#drift</span>
                 <span className={`text-[8px] font-bold ${isDrifted ? "text-red-400" : "text-green-400"}`}>
                   {isDrifted ? "Alert" : "Clean"}
@@ -235,7 +244,7 @@ export default function TelemetryHUD({
             <button
               onClick={onDeploy}
               disabled={isRunning}
-              className="px-4 py-2 rounded-full bg-white hover:bg-slate-100 text-black text-xs font-black shadow-md transition-all shrink-0 hover:scale-105 active:scale-95 disabled:opacity-50"
+              className="px-3.5 sm:px-4 py-2 min-h-[36px] rounded-full bg-white hover:bg-slate-100 text-black text-xs font-black shadow-md transition-all shrink-0 hover:scale-105 active:scale-95 disabled:opacity-50"
               title="Executes full pipeline including live Docker container deployment"
             >
               {isRunning ? "Deploying..." : "Deploy now"}

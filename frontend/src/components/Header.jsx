@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { Download, Box, Cloud, Layers } from "lucide-react";
 import BrandLogo from "./BrandLogo";
+import HorizontalScrollRow from "./ui/HorizontalScrollRow";
 
 const TARGETS = [
   { id: "docker", label: "Docker Local", icon: Box },
@@ -32,27 +33,29 @@ export default function Header({
         </div>
 
         {/* Center: Floating White Pill Multi-Cloud Target Switcher */}
-        <div className="flex items-center bg-white rounded-full p-1 shadow-lg shadow-black/20 border border-white/20 max-w-full overflow-x-auto">
-          <div className="flex items-center space-x-1 shrink-0">
-            {TARGETS.map((t) => {
-              const Icon = t.icon;
-              const isSelected = selectedTarget === t.id;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => onSelectTarget && onSelectTarget(t.id)}
-                  className={`text-xs px-3.5 sm:px-4 py-2 min-h-[38px] rounded-full font-bold transition-all duration-200 flex items-center space-x-1.5 shrink-0 ${
-                    isSelected
-                      ? "bg-[#b8ff22] text-black shadow-sm font-extrabold"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5 shrink-0" />
-                  <span className="whitespace-nowrap">{t.label}</span>
-                  {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-black ml-0.5 shrink-0" />}
-                </button>
-              );
-            })}
+        <div className="max-w-full w-full sm:w-auto flex justify-center">
+          <div className="bg-white rounded-full p-1 shadow-lg shadow-black/20 border border-white/20 max-w-full w-full sm:w-auto overflow-hidden">
+            <HorizontalScrollRow fadeTheme="white" contentClassName="flex items-center space-x-1 shrink-0 px-0.5">
+              {TARGETS.map((t) => {
+                const Icon = t.icon;
+                const isSelected = selectedTarget === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => onSelectTarget && onSelectTarget(t.id)}
+                    className={`text-xs px-3.5 sm:px-4 py-2 min-h-[38px] rounded-full font-bold transition-all duration-150 flex items-center space-x-1.5 shrink-0 ${
+                      isSelected
+                        ? "bg-[#b8ff22] text-black shadow-sm font-extrabold"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5 shrink-0" />
+                    <span className="whitespace-nowrap">{t.label}</span>
+                    {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-black ml-0.5 shrink-0" />}
+                  </button>
+                );
+              })}
+            </HorizontalScrollRow>
           </div>
         </div>
 

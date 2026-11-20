@@ -356,22 +356,24 @@ export default function Cockpit() {
   };
 
   return (
-    <div className="min-h-screen bg-[#cbccd4] text-slate-100 flex flex-col items-center justify-center p-2 sm:p-6 lg:p-10 font-sans selection:bg-[#b8ff22]/40 selection:text-black">
+    <div className="min-h-screen bg-[#cbccd4] text-slate-100 flex flex-col items-center justify-start py-3 sm:py-6 lg:py-10 px-2 sm:px-6 lg:px-10 font-sans selection:bg-[#b8ff22]/40 selection:text-black">
       {/* ── TABLET CONTAINER MATCHING REFERENCE IMAGE ── */}
-      <div className="tablet-container rounded-[36px] sm:rounded-[44px] max-w-[1560px] w-full mx-auto p-4 sm:p-8 space-y-6 relative overflow-hidden">
+      <div className="tablet-container rounded-[28px] sm:rounded-[44px] max-w-[1560px] w-full mx-auto p-3 sm:p-8 space-y-6 relative overflow-hidden">
         {/* 1. TOP NAVBAR WITH FLOATING WHITE PILL */}
-        <Header 
-          dockerOnline={dockerOnline} 
-          pipelineStatus={pipelineState.status}
-          selectedTarget={selectedTarget}
-          onSelectTarget={setSelectedTarget}
-          onExportBundle={handleExportBundle}
-          activeTab={activeNavTab}
-          onSelectTab={setActiveNavTab}
-        />
+        <div className="animate-panel-fade" style={{ animationDelay: "0ms" }}>
+          <Header 
+            dockerOnline={dockerOnline} 
+            pipelineStatus={pipelineState.status}
+            selectedTarget={selectedTarget}
+            onSelectTarget={setSelectedTarget}
+            onExportBundle={handleExportBundle}
+            activeTab={activeNavTab}
+            onSelectTab={setActiveNavTab}
+          />
+        </div>
 
         {/* 2. HERO TITLE + TOP 4 METRIC CARDS */}
-        <div id="section-telemetry">
+        <div id="section-telemetry" className="animate-panel-fade" style={{ animationDelay: "50ms" }}>
           <TelemetryHUD
             telemetry={pipelineState.telemetry}
             pipelineStatus={pipelineState.status}
@@ -388,7 +390,7 @@ export default function Cockpit() {
         </div>
 
         {/* 3. ACTIVE FILTERS STRIP + TIMELINE */}
-        <div id="section-stepper">
+        <div id="section-stepper" className="animate-panel-fade" style={{ animationDelay: "100ms" }}>
           <PipelineStepper
             steps={pipelineState.steps}
             currentStep={pipelineState.current_step}
@@ -402,25 +404,27 @@ export default function Cockpit() {
         </div>
 
         {/* 4. SIGNATURE DUAL-SURFACE SPLIT CARD ISLAND */}
-        <SpecEditor
-          specText={specText}
-          setSpecText={setSpecText}
-          onValidate={handleValidate}
-          onDeploy={handleDeployFull}
-          validationResult={validationResult}
-          isRunning={pipelineState.status === "RUNNING"}
-          containers={containers}
-          terraformCode={terraformCode}
-          resourcePlan={resourcePlan}
-          policies={policies}
-          violations={pipelineState.violations || []}
-          driftResult={driftResult}
-          selectedTarget={selectedTarget}
-        />
+        <div className="animate-panel-fade" style={{ animationDelay: "150ms" }}>
+          <SpecEditor
+            specText={specText}
+            setSpecText={setSpecText}
+            onValidate={handleValidate}
+            onDeploy={handleDeployFull}
+            validationResult={validationResult}
+            isRunning={pipelineState.status === "RUNNING"}
+            containers={containers}
+            terraformCode={terraformCode}
+            resourcePlan={resourcePlan}
+            policies={policies}
+            violations={pipelineState.violations || []}
+            driftResult={driftResult}
+            selectedTarget={selectedTarget}
+          />
+        </div>
 
         {/* 5. OPA GOVERNANCE + TERRAFORM & CANDIDATE PLAN ACCORDIONS */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-          <div id="section-opa" className="lg:col-span-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start animate-panel-fade" style={{ animationDelay: "200ms" }}>
+          <div id="section-opa" className="lg:col-span-6 w-full">
             <PolicyPanel
               opaStatus={pipelineState.steps.opa_policy}
               violations={pipelineState.violations || []}
@@ -430,14 +434,14 @@ export default function Cockpit() {
               staticScan={pipelineState.static_scan}
             />
           </div>
-          <div id="section-terraform" className="lg:col-span-6 space-y-4">
+          <div id="section-terraform" className="lg:col-span-6 space-y-4 w-full">
             <TerraformPanel terraformCode={terraformCode} />
             <ResourcePlanPanel resourcePlan={resourcePlan} />
           </div>
         </div>
 
         {/* 6. RUNTIME COCKPIT: LIVE CONTAINERS & DRIFT HEALING ENGINE */}
-        <div id="section-runtime">
+        <div id="section-runtime" className="animate-panel-fade" style={{ animationDelay: "250ms" }}>
           <RuntimeCockpit
             containers={containers}
             onRefreshContainers={async () => {

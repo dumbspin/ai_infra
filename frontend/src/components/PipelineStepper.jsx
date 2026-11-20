@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Check, Loader2, X, Terminal, ChevronDown, ChevronRight, Filter, RotateCcw, AlertTriangle, ShieldAlert, Bug } from "lucide-react";
+import HorizontalScrollRow from "./ui/HorizontalScrollRow";
 
 const STAGES = [
   { id: "specification", stepNum: "01", title: "Spec Validation", category: "synthesis" },
@@ -80,15 +81,14 @@ export default function PipelineStepper({
   return (
     <div className="space-y-4">
       {/* ── Active Filters Bar ── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
         
         {/* Left: Interactive Filter Pills */}
-        <div className="flex flex-wrap items-center gap-2 text-xs relative">
-          
+        <HorizontalScrollRow fadeTheme="dark" className="flex-1 min-w-0" contentClassName="flex items-center space-x-2 shrink-0 py-0.5 text-xs">
           {/* Active filters badge */}
           <div 
             onClick={activeFiltersCount > 0 ? resetFilters : undefined}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-full border font-bold transition-all ${
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-full border font-bold transition-all shrink-0 ${
               activeFiltersCount > 0 
                 ? "bg-[#1f281e] border-[#b8ff22]/40 text-[#b8ff22] cursor-pointer hover:bg-[#253324]" 
                 : "bg-[#141822] text-white border-white/[0.08]"
@@ -96,7 +96,7 @@ export default function PipelineStepper({
             title={activeFiltersCount > 0 ? "Click to reset all filters" : "Active Filters"}
           >
             <Filter className="w-3 h-3" />
-            <span>Active filters</span>
+            <span className="whitespace-nowrap">Active filters</span>
             <span className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-extrabold ${
               activeFiltersCount > 0 ? "bg-[#b8ff22] text-black" : "bg-white text-black"
             }`}>
@@ -106,13 +106,13 @@ export default function PipelineStepper({
           </div>
 
           {/* Filter 1: Stage Filter Dropdown */}
-          <div className="relative">
+          <div className="relative shrink-0">
             <button
               onClick={() => {
                 setIsStageDropdownOpen(!isStageDropdownOpen);
                 setIsTargetDropdownOpen(false);
               }}
-              className={`flex items-center space-x-1 px-3 py-1.5 rounded-full border transition-all ${
+              className={`flex items-center space-x-1 px-3 py-1.5 rounded-full border transition-all whitespace-nowrap ${
                 selectedStageFilter !== "all"
                   ? "bg-[#1a2130] text-[#b8ff22] border-[#b8ff22]/40 font-bold"
                   : "bg-[#141822] text-slate-300 border-white/[0.06] hover:text-white hover:border-white/10"
@@ -123,7 +123,7 @@ export default function PipelineStepper({
             </button>
 
             {isStageDropdownOpen && (
-              <div className="absolute left-0 top-full mt-1.5 w-44 rounded-2xl bg-[#12151e] border border-white/10 shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+              <div className="absolute left-0 top-full mt-1.5 w-44 rounded-2xl bg-[#12151e] border border-white/10 shadow-2xl p-1.5 z-50">
                 <button
                   onClick={() => {
                     setSelectedStageFilter("all");
@@ -155,13 +155,13 @@ export default function PipelineStepper({
           </div>
 
           {/* Filter 2: Target Runtime Filter Dropdown */}
-          <div className="relative">
+          <div className="relative shrink-0">
             <button
               onClick={() => {
                 setIsTargetDropdownOpen(!isTargetDropdownOpen);
                 setIsStageDropdownOpen(false);
               }}
-              className={`flex items-center space-x-1 px-3 py-1.5 rounded-full border transition-all ${
+              className={`flex items-center space-x-1 px-3 py-1.5 rounded-full border transition-all whitespace-nowrap ${
                 selectedTarget !== "docker"
                   ? "bg-[#1a2130] text-[#b8ff22] border-[#b8ff22]/40 font-bold"
                   : "bg-[#141822] text-slate-300 border-white/[0.06] hover:text-white hover:border-white/10"
@@ -172,7 +172,7 @@ export default function PipelineStepper({
             </button>
 
             {isTargetDropdownOpen && (
-              <div className="absolute left-0 top-full mt-1.5 w-44 rounded-2xl bg-[#12151e] border border-white/10 shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+              <div className="absolute left-0 top-full mt-1.5 w-44 rounded-2xl bg-[#12151e] border border-white/10 shadow-2xl p-1.5 z-50">
                 {TARGETS.map((t) => (
                   <button
                     key={t.id}
@@ -190,48 +190,51 @@ export default function PipelineStepper({
               </div>
             )}
           </div>
-
-        </div>
+        </HorizontalScrollRow>
 
         {/* Right: Interactive Segmented Pill Switcher */}
-        <div className="flex items-center p-1 rounded-full bg-[#141822] border border-white/[0.08] max-w-full overflow-x-auto shrink-0">
-          <button
-            onClick={() => setFilterSegment("all")}
-            className={`px-3.5 py-1 rounded-full text-xs font-bold transition-all ${
-              filterSegment === "all"
-                ? "bg-[#1f2535] text-white shadow-sm font-extrabold"
-                : "text-slate-400 hover:text-white"
-            }`}
-          >
-            All Stages (6)
-          </button>
+        <div className="w-full sm:w-auto flex justify-start sm:justify-end shrink-0">
+          <div className="flex items-center p-1 rounded-full bg-[#141822] border border-white/[0.08] max-w-full overflow-hidden">
+            <HorizontalScrollRow fadeTheme="black" contentClassName="flex items-center space-x-1 shrink-0">
+              <button
+                onClick={() => setFilterSegment("all")}
+                className={`px-3.5 py-1 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
+                  filterSegment === "all"
+                    ? "bg-[#1f2535] text-white shadow-sm font-extrabold"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                All Stages (6)
+              </button>
 
-          <button
-            onClick={() => setFilterSegment("synthesis")}
-            className={`px-3.5 py-1 rounded-full text-xs font-bold transition-all flex items-center space-x-1 ${
-              filterSegment === "synthesis"
-                ? "bg-[#1f2535] text-white shadow-sm font-extrabold"
-                : "text-slate-400 hover:text-white"
-            }`}
-          >
-            <span>Synthesis</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/10 text-slate-300">4</span>
-          </button>
+              <button
+                onClick={() => setFilterSegment("synthesis")}
+                className={`px-3.5 py-1 rounded-full text-xs font-bold transition-all flex items-center space-x-1 whitespace-nowrap ${
+                  filterSegment === "synthesis"
+                    ? "bg-[#1f2535] text-white shadow-sm font-extrabold"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <span>Synthesis</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/10 text-slate-300">4</span>
+              </button>
 
-          {/* Standout Active Lime Pill */}
-          <button
-            onClick={() => setFilterSegment("active")}
-            className={`px-3.5 py-1 rounded-full text-xs font-extrabold transition-all flex items-center space-x-1.5 ${
-              filterSegment === "active" || isSuccess || isRunning
-                ? "bg-[#b8ff22] text-black shadow-md shadow-[#b8ff22]/20"
-                : "text-slate-400 hover:text-white"
-            }`}
-          >
-            <span>{isSuccess ? "Online" : isRunning ? "Running" : "Completed"}</span>
-            <span className="w-4 h-4 rounded-full bg-black text-[#b8ff22] text-[10px] flex items-center justify-center font-black">
-              {completedCount}
-            </span>
-          </button>
+              {/* Standout Active Lime Pill */}
+              <button
+                onClick={() => setFilterSegment("active")}
+                className={`px-3.5 py-1 rounded-full text-xs font-extrabold transition-all flex items-center space-x-1.5 whitespace-nowrap ${
+                  filterSegment === "active" || isSuccess || isRunning
+                    ? "bg-[#b8ff22] text-black shadow-md shadow-[#b8ff22]/20"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <span>{isSuccess ? "Online" : isRunning ? "Running" : "Completed"}</span>
+                <span className="w-4 h-4 rounded-full bg-black text-[#b8ff22] text-[10px] flex items-center justify-center font-black">
+                  {completedCount}
+                </span>
+              </button>
+            </HorizontalScrollRow>
+          </div>
         </div>
 
       </div>
@@ -331,19 +334,19 @@ export default function PipelineStepper({
 
                 <div className="shrink-0 ml-2">
                   {isDaemonUnavail ? (
-                    <div className="w-5 h-5 rounded-full bg-amber-500 text-black flex items-center justify-center font-bold">
+                    <div className="w-5 h-5 rounded-full bg-amber-500 text-black flex items-center justify-center font-bold animate-status-pulse">
                       <AlertTriangle className="w-3 h-3 stroke-[3]" />
                     </div>
                   ) : isThisFailed ? (
-                    <div className="w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center font-bold animate-pulse">
+                    <div className="w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center font-bold animate-status-pulse">
                       <X className="w-3 h-3 stroke-[3]" />
                     </div>
                   ) : isStepSuccess ? (
-                    <div className="w-5 h-5 rounded-full bg-green-500 text-black flex items-center justify-center font-bold">
+                    <div className="w-5 h-5 rounded-full bg-green-500 text-black flex items-center justify-center font-bold animate-status-pulse">
                       <Check className="w-3 h-3 stroke-[3]" />
                     </div>
                   ) : isStepActive ? (
-                    <div className="w-5 h-5 rounded-full bg-[#b8ff22] text-black flex items-center justify-center font-bold animate-spin">
+                    <div className="w-5 h-5 rounded-full bg-[#b8ff22] text-black flex items-center justify-center font-bold animate-spin animate-status-pulse">
                       <Loader2 className="w-3 h-3 stroke-[3]" />
                     </div>
                   ) : (

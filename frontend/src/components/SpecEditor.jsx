@@ -3,6 +3,7 @@ import {
   Play, CheckCircle2, XCircle, ShieldCheck, FileCode2, ArrowUpRight, Copy, Check, Wand2, 
   Layers, Box, Database, Cpu, Activity, Sparkles, SlidersHorizontal, Eye, Code, Terminal, CheckSquare
 } from "lucide-react";
+import HorizontalScrollRow from "./ui/HorizontalScrollRow";
 
 const DEMO_SPECS = {
   compliant: `spec_version: "1.0"
@@ -510,10 +511,14 @@ export default function SpecEditor({
               className="ref-tile-dark rounded-2xl p-3.5 flex flex-col justify-between min-h-[90px] cursor-pointer transition-all hover:scale-[1.02]"
             >
               <div className="flex items-start justify-between">
-                <span className="text-base font-black text-[#b8ff22] font-mono">main.tf</span>
+                <span className="text-base font-black text-[#b8ff22] font-mono">
+                  {terraformCode ? "main.tf" : "Draft Plan"}
+                </span>
                 <ArrowUpRight className="w-3.5 h-3.5 text-slate-400" />
               </div>
-              <span className="text-[10px] text-slate-400 font-medium mt-2">{terraformCode ? "Terraform Ready" : "Terraform Draft"}</span>
+              <span className="text-[10px] text-slate-400 font-medium mt-2">
+                {terraformCode ? "Synthesized IaC (HCL)" : "Awaiting Synthesis"}
+              </span>
             </div>
 
             {/* Tile 3: OPA Policy */}
@@ -542,14 +547,14 @@ export default function SpecEditor({
               <span className="text-[#b8ff22]">172.28.0.0/16 [{selectedTarget}]</span>
             </div>
 
-            <div className="flex items-center justify-between gap-1.5 pt-3 overflow-x-auto">
+            <HorizontalScrollRow fadeTheme="black" contentClassName="flex items-center space-x-1.5 pt-3 shrink-0">
               <div className="px-2.5 py-1.5 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 text-black text-[10px] font-black text-center shrink-0 shadow-sm">
                 INGRESS
               </div>
 
               {serviceList.map((s, idx) => (
                 <React.Fragment key={idx}>
-                  <div className="h-0.5 flex-1 min-w-[20px] bg-[#252c3d] relative">
+                  <div className="h-0.5 w-6 sm:w-10 bg-[#252c3d] relative shrink-0">
                     <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#b8ff22]" />
                   </div>
                   <div className={`px-2.5 py-1.5 rounded-xl border text-[10px] font-bold text-center shrink-0 ${
@@ -561,49 +566,48 @@ export default function SpecEditor({
                   </div>
                 </React.Fragment>
               ))}
-            </div>
+            </HorizontalScrollRow>
           </div>
 
           {/* Bottom Subtotal & Option 1 Standout Full Deploy Button */}
-          <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-white/[0.08] mt-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pt-4 border-t border-white/[0.08] mt-3">
             
-            <div className="flex items-center space-x-4 sm:space-x-6">
-              <div>
+            <HorizontalScrollRow fadeTheme="innerDark" className="flex-1 min-w-0" contentClassName="flex items-center space-x-5 sm:space-x-6 shrink-0 py-0.5">
+              <div className="shrink-0">
                 <span className="text-[9px] text-slate-500 uppercase font-mono block">Declared Svcs</span>
                 <span className="text-sm font-black text-white font-mono">{parsedSpec.services.length} Services</span>
               </div>
 
-              <div>
+              <div className="shrink-0">
                 <span className="text-[9px] text-slate-500 uppercase font-mono block">Target Units</span>
                 <span className="text-sm font-black text-white font-mono">{parsedSpec.services.reduce((acc, s) => acc + (s.replicas || 1), 0) || 5} Units</span>
               </div>
 
-              <div>
+              <div className="shrink-0">
                 <span className="text-[9px] text-slate-500 uppercase font-mono block">Containers Live</span>
                 <span className={`text-sm font-black font-mono ${containers.length > 0 ? "text-[#b8ff22]" : "text-slate-400"}`}>
                   {containers.length > 0 ? `${containers.length} Running` : "0 Standby"}
                 </span>
               </div>
 
-              <div>
+              <div className="shrink-0">
                 <span className="text-[9px] text-slate-500 uppercase font-mono block">Drift Status</span>
                 <span className={`text-sm font-black font-mono ${driftResult?.drift_detected ? "text-red-400" : "text-[#b8ff22]"}`}>
                   {driftResult?.drift_detected ? "Drift Alert" : "Zero Drift"}
                 </span>
               </div>
-            </div>
+            </HorizontalScrollRow>
 
             {/* Bottom Button: Option 1 - Full Deploy */}
             <button
               onClick={onDeploy}
               disabled={isRunning}
-              className="lime-pill-btn px-6 py-2.5 rounded-full text-xs font-black flex items-center space-x-2 disabled:opacity-50"
+              className="lime-pill-btn px-6 py-2.5 rounded-full text-xs font-black flex items-center justify-center space-x-2 disabled:opacity-50 shrink-0 w-full sm:w-auto mt-1 sm:mt-0"
               title="Executes full pipeline including live Docker container deployment"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
               <span>{isRunning ? "Deploying..." : "⚡ Synthesize & Deploy"}</span>
             </button>
-
           </div>
 
         </div>

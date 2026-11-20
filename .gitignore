@@ -26,3 +26,8 @@ frontend/dist/
 # Local DB & Build
 data/
 *.egg-info/
+
+# Media & Temp
+brag-output/
+*.mp3
+.agents/

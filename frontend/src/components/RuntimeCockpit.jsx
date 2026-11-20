@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Container, ShieldCheck, ShieldAlert, Shield, Box, Cpu, AlertTriangle, CheckCircle2, Flame, Trash2, Zap, ArrowUpRight, History, Check, X, RotateCcw, GitCommit, ChevronDown, ChevronUp, SearchCheck, Lock, Clock } from "lucide-react";
+import HorizontalScrollRow from "./ui/HorizontalScrollRow";
 
 export default function RuntimeCockpit({
   containers = [],
@@ -36,9 +37,9 @@ export default function RuntimeCockpit({
   return (
     <div className="ref-dark-card rounded-[32px] shadow-2xl overflow-hidden flex flex-col">
       {/* Header Bar */}
-      <div className="bg-[#141824] px-6 py-4 border-b border-white/[0.06] flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-[#141824] px-4 sm:px-6 py-4 border-b border-white/[0.06] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 rounded-xl bg-[#192234] border border-white/[0.08] flex items-center justify-center text-[#b8ff22] shadow-sm">
+          <div className="w-8 h-8 rounded-xl bg-[#192234] border border-white/[0.08] flex items-center justify-center text-[#b8ff22] shadow-sm shrink-0">
             <Container className="w-4 h-4" />
           </div>
           <div>
@@ -51,65 +52,69 @@ export default function RuntimeCockpit({
         </div>
 
         {/* Tab Controls */}
-        <div className="flex items-center p-1 rounded-full bg-[#0c0e14] border border-white/[0.08] max-w-full overflow-x-auto">
-          <button
-            onClick={() => setActiveTab("containers")}
-            className={`flex items-center space-x-1.5 px-3.5 sm:px-4 py-2 min-h-[38px] rounded-full text-xs font-bold transition-all shrink-0 ${
-              activeTab === "containers"
-                ? "bg-[#b8ff22] text-black shadow-md shadow-[#b8ff22]/20 font-extrabold"
-                : "text-slate-400 hover:text-white"
-            }`}
-          >
-            <Container className="w-3.5 h-3.5 shrink-0" />
-            <span className="whitespace-nowrap">Containers & Drift</span>
-            {isDrifted && <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse ml-0.5 shrink-0" />}
-          </button>
+        <div className="w-full sm:w-auto flex justify-start sm:justify-end max-w-full">
+          <div className="bg-[#0c0e14] rounded-full p-1 border border-white/[0.08] max-w-full w-full sm:w-auto overflow-hidden">
+            <HorizontalScrollRow fadeTheme="black" contentClassName="flex items-center space-x-1 shrink-0 px-0.5">
+              <button
+                onClick={() => setActiveTab("containers")}
+                className={`flex items-center space-x-1.5 px-3.5 sm:px-4 py-2 min-h-[38px] rounded-full text-xs font-bold transition-all shrink-0 ${
+                  activeTab === "containers"
+                    ? "bg-[#b8ff22] text-black shadow-md shadow-[#b8ff22]/20 font-extrabold"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <Container className="w-3.5 h-3.5 shrink-0" />
+                <span className="whitespace-nowrap">Containers & Drift</span>
+                {isDrifted && <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse ml-0.5 shrink-0" />}
+              </button>
 
-          <button
-            onClick={() => setActiveTab("policy")}
-            className={`flex items-center space-x-1.5 px-3.5 sm:px-4 py-2 min-h-[38px] rounded-full text-xs font-bold transition-all shrink-0 ${
-              activeTab === "policy"
-                ? "bg-[#b8ff22] text-black shadow-md shadow-[#b8ff22]/20 font-extrabold"
-                : "text-slate-400 hover:text-white"
-            }`}
-          >
-            <Shield className="w-3.5 h-3.5 shrink-0" />
-            <span className="whitespace-nowrap">Security & Policy</span>
-            {violations.length > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-red-500 text-white text-[9px] font-bold shrink-0">
-                {violations.length}
-              </span>
-            )}
-          </button>
+              <button
+                onClick={() => setActiveTab("policy")}
+                className={`flex items-center space-x-1.5 px-3.5 sm:px-4 py-2 min-h-[38px] rounded-full text-xs font-bold transition-all shrink-0 ${
+                  activeTab === "policy"
+                    ? "bg-[#b8ff22] text-black shadow-md shadow-[#b8ff22]/20 font-extrabold"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <Shield className="w-3.5 h-3.5 shrink-0" />
+                <span className="whitespace-nowrap">Security & Policy</span>
+                {violations.length > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full bg-red-500 text-white text-[9px] font-bold shrink-0">
+                    {violations.length}
+                  </span>
+                )}
+              </button>
 
-          <button
-            onClick={() => setActiveTab("artifacts")}
-            className={`flex items-center space-x-1.5 px-3.5 sm:px-4 py-2 min-h-[38px] rounded-full text-xs font-bold transition-all shrink-0 ${
-              activeTab === "artifacts"
-                ? "bg-[#b8ff22] text-black shadow-md shadow-[#b8ff22]/20 font-extrabold"
-                : "text-slate-400 hover:text-white"
-            }`}
-          >
-            <Box className="w-3.5 h-3.5 shrink-0" />
-            <span className="whitespace-nowrap">Terraform & Plan</span>
-          </button>
+              <button
+                onClick={() => setActiveTab("artifacts")}
+                className={`flex items-center space-x-1.5 px-3.5 sm:px-4 py-2 min-h-[38px] rounded-full text-xs font-bold transition-all shrink-0 ${
+                  activeTab === "artifacts"
+                    ? "bg-[#b8ff22] text-black shadow-md shadow-[#b8ff22]/20 font-extrabold"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <Box className="w-3.5 h-3.5 shrink-0" />
+                <span className="whitespace-nowrap">Terraform & Plan</span>
+              </button>
 
-          <button
-            onClick={() => setActiveTab("history")}
-            className={`flex items-center space-x-1.5 px-3.5 sm:px-4 py-2 min-h-[38px] rounded-full text-xs font-bold transition-all shrink-0 ${
-              activeTab === "history"
-                ? "bg-[#b8ff22] text-black shadow-md shadow-[#b8ff22]/20 font-extrabold"
-                : "text-slate-400 hover:text-white"
-            }`}
-          >
-            <History className="w-3.5 h-3.5 shrink-0" />
-            <span className="whitespace-nowrap">Run History</span>
-            {runHistory.length > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-white/10 text-[9px] font-bold ml-0.5 shrink-0">
-                {runHistory.length}
-              </span>
-            )}
-          </button>
+              <button
+                onClick={() => setActiveTab("history")}
+                className={`flex items-center space-x-1.5 px-3.5 sm:px-4 py-2 min-h-[38px] rounded-full text-xs font-bold transition-all shrink-0 ${
+                  activeTab === "history"
+                    ? "bg-[#b8ff22] text-black shadow-md shadow-[#b8ff22]/20 font-extrabold"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <History className="w-3.5 h-3.5 shrink-0" />
+                <span className="whitespace-nowrap">Run History</span>
+                {runHistory.length > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full bg-white/10 text-[9px] font-bold ml-0.5 shrink-0">
+                    {runHistory.length}
+                  </span>
+                )}
+              </button>
+            </HorizontalScrollRow>
+          </div>
         </div>
       </div>
 

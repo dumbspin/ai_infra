@@ -554,8 +554,14 @@ def drift(
     tfstate_path = gen_dir / "terraform.tfstate"
     tfstate = json.loads(tfstate_path.read_text(encoding="utf-8")) if tfstate_path.exists() else {"resources": []}
 
-    live_res = subprocess.run(["docker", "ps", "--format", "{{.Names}}"], capture_output=True, text=True, check=False)
-    live_containers = [{"name": n.strip()} for n in live_res.stdout.splitlines() if n.strip()]
+    live_containers = []
+    if is_docker_daemon_reachable():
+        try:
+            live_res = subprocess.run(["docker", "ps", "--format", "{{.Names}}"], capture_output=True, text=True, check=False)
+            if live_res.returncode == 0 and live_res.stdout:
+                live_containers = [{"name": n.strip()} for n in live_res.stdout.splitlines() if n.strip()]
+        except Exception:
+            live_containers = []
 
     drift_report = detect_drift(spec, tfstate, live_containers=live_containers)
     drift_detected = drift_report.get("drift_detected", False)
@@ -566,7 +572,11 @@ def drift(
             res_name = item.get("resource")
             drift_type = item.get("type", "")
             if drift_type == "unmanaged_resource":
-                subprocess.run(["docker", "rm", "-f", res_name], capture_output=True, check=False)
+                if is_docker_daemon_reachable():
+                    try:
+                        subprocess.run(["docker", "rm", "-f", res_name], capture_output=True, check=False)
+                    except Exception:
+                        pass
                 reconciled_actions.append(f"Pruned unmanaged container: {res_name}")
             elif drift_type in ("missing_resource", "count_mismatch", "config_drift"):
                 apply_plan(gen_dir)
@@ -574,8 +584,14 @@ def drift(
 
         time.sleep(1)
         # Re-check drift after reconciliation
-        live_res2 = subprocess.run(["docker", "ps", "--format", "{{.Names}}"], capture_output=True, text=True, check=False)
-        live_containers2 = [{"name": n.strip()} for n in live_res2.stdout.splitlines() if n.strip()]
+        live_containers2 = []
+        if is_docker_daemon_reachable():
+            try:
+                live_res2 = subprocess.run(["docker", "ps", "--format", "{{.Names}}"], capture_output=True, text=True, check=False)
+                if live_res2.returncode == 0 and live_res2.stdout:
+                    live_containers2 = [{"name": n.strip()} for n in live_res2.stdout.splitlines() if n.strip()]
+            except Exception:
+                live_containers2 = []
         drift_report = detect_drift(spec, tfstate, live_containers=live_containers2)
         drift_detected = drift_report.get("drift_detected", False)
 

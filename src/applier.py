@@ -1,3 +1,4 @@
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Tuple, Optional
@@ -16,11 +17,18 @@ class TerraformApplyError(Exception):
     pass
 
 
+def is_docker_installed() -> bool:
+    """Checks if the docker CLI binary is available on system PATH."""
+    return shutil.which("docker") is not None
+
+
 def is_docker_daemon_reachable(timeout: float = 3.0) -> bool:
     """
     Checks if a local or remote Docker daemon is online and responsive.
-    Returns True if docker info / docker ps responds cleanly, False otherwise.
+    Returns True if docker info responds cleanly, False otherwise.
     """
+    if not is_docker_installed():
+        return False
     try:
         res = subprocess.run(
             ["docker", "info"],
