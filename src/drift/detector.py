@@ -14,6 +14,22 @@ def detect_drift(
     norm_spec = normalize_spec(spec)
     norm_state = normalize_tfstate(tfstate)
 
+    # In environments where tfstate is not persisted on disk (e.g. hosted cloud demo),
+    # map active live/sandbox containers back to known spec services
+    if not norm_state and live_containers and norm_spec.get("services"):
+        for live_c in live_containers:
+            c_name = live_c.get("name", "")
+            for s_name in norm_spec["services"].keys():
+                if c_name.startswith(f"{s_name}_"):
+                    if s_name not in norm_state:
+                        norm_state[s_name] = []
+                    norm_state[s_name].append({
+                        "container_name": c_name,
+                        "image": live_c.get("image", norm_spec["services"][s_name]["image"]),
+                        "public_access": norm_spec["services"][s_name]["public_access"]
+                    })
+                    break
+
     drift_items = []
 
     # 1. Compare spec services against state
