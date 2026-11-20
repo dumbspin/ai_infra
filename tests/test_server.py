@@ -341,8 +341,8 @@ def test_policy_toggle_allows_violating_spec_when_disabled(monkeypatch):
 
 def test_docker_stage5_stops_cleanly_when_daemon_unreachable(monkeypatch):
     """
-    Asserts that when Docker daemon is unreachable, Stage 5 stops with DAEMON_UNAVAILABLE,
-    displays the helpful local CLI message, records 'blocked' in history, and never invokes terraform apply.
+    Asserts that when Docker daemon is unreachable in web demo, Stage 5 simulates deployment cleanly,
+    marks demo_mode, displays the helpful local CLI message, and never invokes terraform apply.
     """
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     from unittest.mock import MagicMock
@@ -371,22 +371,16 @@ metadata:
 """
     server_mod.execute_pipeline_task(valid_yaml, target="docker", dry_run=False)
 
-    # 1. Assert terraform apply was never called
+    # 1. Assert terraform apply was never called on host without daemon
     mock_apply.assert_not_called()
 
-    # 2. Assert distinct DAEMON_UNAVAILABLE status (NOT EXECUTION DENIED)
-    assert server_mod.pipeline_state["status"] == "BLOCKED"
-    assert server_mod.pipeline_state["steps"]["deployment"] == "DAEMON_UNAVAILABLE"
-    assert server_mod.pipeline_state["failed_step"] == "deployment"
+    # 2. Assert SUCCESS with simulation mode active
+    assert server_mod.pipeline_state["status"] == "SUCCESS"
+    assert server_mod.pipeline_state["steps"]["deployment"] == "SUCCESS"
+    assert server_mod.pipeline_state["demo_mode"] is True
 
-    # 3. Assert clear, actionable error message without rollback warnings
-    expected_msg = (
-        "No Docker daemon reachable in this environment. This target requires local "
-        "infrastructure access — run `sdd deploy --target docker` from your own machine "
-        "to complete stages 5-6."
-    )
-    assert server_mod.pipeline_state["error_message"] == expected_msg
-    assert "Automatic rollback disabled" not in server_mod.pipeline_state["error_message"]
+    # 3. Assert clear CLI guidance notice is present
+    assert "sdd deploy --target docker" in server_mod.pipeline_state["simulation_notice"]
 
 
 def test_docker_stage5_proceeds_when_daemon_reachable(monkeypatch):

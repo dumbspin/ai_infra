@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Check, Loader2, X, Terminal, ChevronDown, ChevronRight, Filter, RotateCcw, AlertTriangle, ShieldAlert, Bug } from "lucide-react";
+import { Check, Loader2, X, Terminal, ChevronDown, ChevronRight, Filter, RotateCcw, AlertTriangle, ShieldAlert, Bug, Sparkles } from "lucide-react";
 import HorizontalScrollRow from "./ui/HorizontalScrollRow";
 
 const STAGES = [
@@ -359,18 +359,32 @@ export default function PipelineStepper({
           })}
         </div>
 
-        {/* ── Hosted Sandbox Notice (When in demo mode without local daemon) ── */}
+        {/* ── Hosted Simulation Notice (When in demo mode without local daemon) ── */}
         {isSuccess && demoMode && (
-          <div className="mt-3 p-3.5 rounded-2xl bg-[#122016] border border-green-500/30 text-green-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono shadow-sm animate-panel-fade">
-            <div className="flex items-center space-x-2.5">
-              <span className="w-2 h-2 rounded-full bg-[#b8ff22] animate-pulse shrink-0" />
-              <span>
-                <strong className="text-white font-sans uppercase tracking-wider text-[11px] font-black mr-1.5">Hosted Sandbox Runtime:</strong>
-                Virtual container units provisioned & monitored. Run <code className="bg-black/50 px-1.5 py-0.5 rounded text-[#b8ff22] border border-white/10 font-bold">sdd deploy --target docker</code> locally to bind to a physical Docker daemon.
-              </span>
+          <div className="mt-3 p-4 rounded-2xl bg-[#122016] border border-green-500/40 text-green-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono shadow-lg shadow-green-500/5 animate-panel-fade">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 rounded-xl bg-green-500/20 text-[#b8ff22] border border-green-500/30 flex items-center justify-center shrink-0">
+                <Sparkles className="w-4 h-4 text-[#b8ff22]" />
+              </div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs font-black text-white uppercase tracking-wider font-sans">
+                    Stage 05 (Docker Runtime): Hosted Simulation Active
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full bg-[#b8ff22] text-black font-mono text-[9px] font-extrabold tracking-wider uppercase">
+                    Simulation Mode
+                  </span>
+                </div>
+                <p className="text-xs font-mono text-green-100/90 mt-1 leading-relaxed">
+                  ✓ This is a simulation for the web demo. Real container deployment happens through the CLI:{" "}
+                  <code className="bg-black/60 px-1.5 py-0.5 rounded text-[#b8ff22] border border-white/10 font-bold">
+                    sdd deploy --target docker
+                  </code>
+                </p>
+              </div>
             </div>
-            <span className="px-2.5 py-0.5 rounded-full bg-[#b8ff22]/20 text-[#b8ff22] font-mono text-[10px] font-bold border border-[#b8ff22]/30 shrink-0 self-start sm:self-auto">
-              HOSTED SANDBOX
+            <span className="self-end sm:self-center px-3 py-1.5 rounded-full bg-[#b8ff22]/10 text-[#b8ff22] border border-[#b8ff22]/30 text-xs font-bold font-mono shrink-0">
+              CLI for Real Deploy
             </span>
           </div>
         )}

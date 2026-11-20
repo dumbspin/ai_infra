@@ -85,6 +85,7 @@ pipeline_state = {
     "failed_step": None,
     "error_message": None,
     "demo_mode": False,
+    "simulation_notice": None,
     "spec_hash": None,
     "spec_commit": None,
     "steps": {
@@ -629,32 +630,25 @@ def execute_pipeline_task(yaml_content: str, target: str = "docker", dry_run: bo
 
         if target == "docker":
             if not is_docker_daemon_reachable():
-                total_time = round((time.time() - start_time) * 1000, 1)
-                pipeline_state["telemetry"]["total_duration_ms"] = total_time
-                pipeline_state["status"] = "BLOCKED"
-                pipeline_state["current_step"] = "deployment"
-                pipeline_state["failed_step"] = "deployment"
-                pipeline_state["steps"]["deployment"] = "DAEMON_UNAVAILABLE"
-                pipeline_state["error_message"] = DAEMON_UNAVAILABLE_MESSAGE
-                log(f"[INFO] {DAEMON_UNAVAILABLE_MESSAGE}")
-                _persist_pipeline_run(
-                    spec_commit=commit_tag,
-                    target=target,
-                    status="blocked",
-                    duration_ms=total_time,
-                    dry_run=False,
-                    failure_stage="deployment",
-                    failure_detail=DAEMON_UNAVAILABLE_MESSAGE,
+                log("[HOSTED SIMULATION] No physical Docker daemon reachable on cloud host.")
+                log("Simulating container runtime for web demo showcase (Real provisioning requires local CLI)...")
+                time.sleep(1.0)
+                _provision_sandbox_containers(plan, spec)
+                pipeline_state["steps"]["deployment"] = "SUCCESS"
+                pipeline_state["demo_mode"] = True
+                pipeline_state["simulation_notice"] = (
+                    "Hosted Simulation: Virtual containers provisioned. "
+                    "Real deployment to a live Docker engine happens via the CLI: `sdd deploy --target docker`"
                 )
-                return
-
-            log("Applying plan to live local Docker engine...")
-            applied, apply_logs = apply_plan(gen_dir)
-            if not applied:
-                pipeline_state["steps"]["deployment"] = "FAILED"
-                raise RuntimeError(f"Terraform apply failed:\n{apply_logs}")
-            pipeline_state["steps"]["deployment"] = "SUCCESS"
-            log("Terraform apply completed. Live Docker infrastructure updated.")
+                log("Docker simulation completed: Virtual container state active. Run `sdd deploy --target docker` locally for live engine apply.")
+            else:
+                log("Applying plan to live local Docker engine...")
+                applied, apply_logs = apply_plan(gen_dir)
+                if not applied:
+                    pipeline_state["steps"]["deployment"] = "FAILED"
+                    raise RuntimeError(f"Terraform apply failed:\n{apply_logs}")
+                pipeline_state["steps"]["deployment"] = "SUCCESS"
+                log("Terraform apply completed. Live Docker infrastructure updated.")
         else:
             log(f"Target is {target.upper()} (Synthesis & Verification Mode).")
             time.sleep(1)
