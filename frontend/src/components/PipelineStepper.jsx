@@ -25,7 +25,8 @@ export default function PipelineStepper({
   errorMessage = null,
   logs = [],
   selectedTarget = "docker",
-  onSelectTarget
+  onSelectTarget,
+  demoMode = false
 }) {
   const [showLogs, setShowLogs] = useState(false);
   const [filterSegment, setFilterSegment] = useState("all"); // "all" | "synthesis" | "active"
@@ -270,7 +271,7 @@ export default function PipelineStepper({
                 : isFailed 
                 ? `✕ Pipeline Execution Blocked in Stage ${failedStageInfo?.stepNum || ""}: ${failedStageInfo?.title || "Security/Validation Gate"}`
                 : isSuccess 
-                ? `${completedCount}/6 stages completed successfully` 
+                ? `${completedCount}/6 stages completed successfully${demoMode ? " • Hosted Sandbox Runtime" : ""}` 
                 : isRunning 
                 ? `Executing stage: ${currentStep.toUpperCase()}...` 
                 : "Ready to synthesize"}
@@ -357,6 +358,22 @@ export default function PipelineStepper({
             );
           })}
         </div>
+
+        {/* ── Hosted Sandbox Notice (When in demo mode without local daemon) ── */}
+        {isSuccess && demoMode && (
+          <div className="mt-3 p-3.5 rounded-2xl bg-[#122016] border border-green-500/30 text-green-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono shadow-sm animate-panel-fade">
+            <div className="flex items-center space-x-2.5">
+              <span className="w-2 h-2 rounded-full bg-[#b8ff22] animate-pulse shrink-0" />
+              <span>
+                <strong className="text-white font-sans uppercase tracking-wider text-[11px] font-black mr-1.5">Hosted Sandbox Runtime:</strong>
+                Virtual container units provisioned & monitored. Run <code className="bg-black/50 px-1.5 py-0.5 rounded text-[#b8ff22] border border-white/10 font-bold">sdd deploy --target docker</code> locally to bind to a physical Docker daemon.
+              </span>
+            </div>
+            <span className="px-2.5 py-0.5 rounded-full bg-[#b8ff22]/20 text-[#b8ff22] font-mono text-[10px] font-bold border border-[#b8ff22]/30 shrink-0 self-start sm:self-auto">
+              HOSTED SANDBOX
+            </span>
+          </div>
+        )}
 
         {/* ── High-Visibility Failure Diagnostic Card ── */}
         {isFailed && (

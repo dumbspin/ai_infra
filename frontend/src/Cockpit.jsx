@@ -400,6 +400,7 @@ export default function Cockpit() {
             logs={pipelineState.logs}
             selectedTarget={selectedTarget}
             onSelectTarget={setSelectedTarget}
+            demoMode={pipelineState.demo_mode}
           />
         </div>
 

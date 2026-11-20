@@ -84,6 +84,7 @@ pipeline_state = {
     "current_step": "idle",
     "failed_step": None,
     "error_message": None,
+    "demo_mode": False,
     "spec_hash": None,
     "spec_commit": None,
     "steps": {
@@ -177,13 +178,57 @@ scheduled_drift_state = {
 
 
 
-# In-memory tracking for simulated drift in environments without live Docker daemon (e.g. hosted demo on Render)
+# In-memory tracking for simulated drift and sandbox containers in environments without live Docker daemon (e.g. hosted demo on Render)
 simulated_drift_containers = set()
+sandbox_containers: List[Dict[str, Any]] = []
+
+
+def _provision_sandbox_containers(plan: Dict[str, Any], spec: Dict[str, Any]):
+    """Generates virtual container runtime state for hosted demo environments."""
+    global sandbox_containers
+    new_containers = []
+    services = spec.get("services", {})
+    if not services and "resources" in plan:
+        for r in plan["resources"]:
+            new_containers.append({
+                "resource": r.get("name", "container"),
+                "image": r.get("image", "alpine:latest"),
+                "desired": 1,
+                "actual": 1,
+                "status": "Running (Sandbox)"
+            })
+    else:
+        for svc_name, svc_cfg in services.items():
+            replicas = svc_cfg.get("replicas", 1)
+            image = svc_cfg.get("image", "nginx:latest")
+            for i in range(1, replicas + 1):
+                new_containers.append({
+                    "resource": f"{svc_name}_{i}",
+                    "image": image,
+                    "desired": 1,
+                    "actual": 1,
+                    "status": "Running (Sandbox)"
+                })
+    sandbox_containers = new_containers
+
+
+def _init_sandbox_if_needed():
+    """Initializes virtual containers on server startup if no real docker daemon is available."""
+    global sandbox_containers
+    if not is_docker_daemon_reachable() and not sandbox_containers:
+        spec_path = ROOT_DIR / "terraform" / "generated" / "active_infrastructure.yaml"
+        if not spec_path.exists():
+            spec_path = ROOT_DIR / "specification" / "infrastructure.yaml"
+        if spec_path.exists():
+            try:
+                spec = load_spec(spec_path)
+                _provision_sandbox_containers({}, spec)
+            except Exception:
+                pass
 
 
 def get_live_containers() -> List[Dict[str, Any]]:
-    """Safely retrieves live container status dicts or empty list if docker is unavailable."""
-    containers = []
+    """Safely retrieves live container status dicts or sandbox containers if docker is unavailable."""
     if is_docker_daemon_reachable():
         try:
             res = subprocess.run(
@@ -193,6 +238,7 @@ def get_live_containers() -> List[Dict[str, Any]]:
                 check=False
             )
             if res.returncode == 0 and res.stdout.strip():
+                containers = []
                 for line in res.stdout.strip().splitlines():
                     parts = line.split("\t")
                     if len(parts) >= 3:
@@ -204,9 +250,23 @@ def get_live_containers() -> List[Dict[str, Any]]:
                             "actual": 1,
                             "status": "Running" if "Up" in status else status
                         })
+                return containers
         except Exception:
-            containers = []
-    return containers
+            pass
+
+    # Hosted sandbox fallback
+    _init_sandbox_if_needed()
+    result = [dict(c) for c in sandbox_containers]
+    for name in simulated_drift_containers:
+        if not any(c.get("resource") == name for c in result):
+            result.append({
+                "resource": name,
+                "image": "nginx:1.25",
+                "desired": 0,
+                "actual": 1,
+                "status": "Untracked (Drift)"
+            })
+    return result
 
 
 def get_live_container_names() -> List[Dict[str, str]]:
@@ -219,6 +279,9 @@ def get_live_container_names() -> List[Dict[str, str]]:
                 names = [{"name": n.strip()} for n in live_res.stdout.splitlines() if n.strip()]
         except Exception:
             names = []
+    else:
+        _init_sandbox_if_needed()
+        names = [{"name": c["resource"]} for c in sandbox_containers]
 
     for name in simulated_drift_containers:
         if not any(c.get("name") == name for c in names):
@@ -1013,6 +1076,8 @@ def reconcile_drift():
         elif drift_type in ("missing_resource", "count_mismatch", "config_drift"):
             if is_docker_daemon_reachable():
                 apply_plan(gen_dir)
+            else:
+                _provision_sandbox_containers({}, spec)
             reconciled_actions.append(f"Re-applied Terraform desired state for: {res_name}")
 
     simulated_drift_containers.clear()
